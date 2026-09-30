@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.vithey.content.client.FileServiceClient;
 import com.vithey.content.dto.request.CreatePostRequest;
+import com.vithey.content.dto.request.UpdatePostRequest;
 import com.vithey.content.dto.response.FileMetadataResponse;
 import com.vithey.content.dto.response.PostResponse;
 import com.vithey.content.entity.Post;
@@ -18,6 +19,7 @@ import com.vithey.content.exception.ApiException;
 import com.vithey.content.exception.ErrorCode;
 import com.vithey.content.repository.PostRepository;
 import com.vithey.content.util.ApiResponseWrapper;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -111,5 +113,67 @@ class PostServiceTest {
 
     assertEquals(ErrorCode.INVALID_FILE, exception.getErrorCode());
     verify(postRepository, never()).save(any());
+  }
+
+  @Test
+  void updatePost_rejectsNonOwner() {
+    UUID postId = UUID.randomUUID();
+    UUID owner = UUID.randomUUID();
+    UUID other = UUID.randomUUID();
+    Post post = new Post();
+    post.setId(postId);
+    post.setAuthorId(owner);
+    post.setType(PostType.POSTER);
+    when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(post));
+
+    ApiException exception = assertThrows(
+        ApiException.class,
+        () -> postService.updatePost(postId, other, new UpdatePostRequest("new", null))
+    );
+
+    assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
+    verify(postRepository, never()).save(any());
+  }
+
+  @Test
+  void updatePost_rejectsMissingPost() {
+    UUID postId = UUID.randomUUID();
+    when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.empty());
+
+    ApiException exception = assertThrows(
+        ApiException.class,
+        () -> postService.updatePost(postId, UUID.randomUUID(), new UpdatePostRequest("x", null))
+    );
+
+    assertEquals(ErrorCode.NOT_FOUND, exception.getErrorCode());
+  }
+
+  @Test
+  void updatePost_updatesContentAndJobMeta() {
+    UUID postId = UUID.randomUUID();
+    UUID owner = UUID.randomUUID();
+    Post post = new Post();
+    post.setId(postId);
+    post.setAuthorId(owner);
+    post.setType(PostType.JOB);
+    post.setContent("old");
+    post.setJobTitle("old title");
+    when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(post));
+    when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(postEnrichmentService.enrich(any(Post.class), any(UUID.class)))
+        .thenReturn(new PostResponse(
+            postId, null, PostType.JOB, "new", null, null, 0, 0, false, null
+        ));
+
+    PostResponse response = postService.updatePost(
+        postId,
+        owner,
+        new UpdatePostRequest("new", new CreatePostRequest.JobMetaRequest("new title", "d", "r", null))
+    );
+
+    assertEquals("new", post.getContent());
+    assertEquals("new title", post.getJobTitle());
+    assertEquals(PostType.JOB, response.type());
+    verify(postRepository).save(any(Post.class));
   }
 }

@@ -1,6 +1,7 @@
 package com.vithey.content.controller;
 
 import com.vithey.content.dto.request.CreatePostRequest;
+import com.vithey.content.dto.request.UpdatePostRequest;
 import com.vithey.content.dto.response.PostResponse;
 import com.vithey.content.entity.PostType;
 import com.vithey.content.security.CurrentUserProvider;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -100,6 +102,23 @@ public class PostController {
   ) {
     UUID viewerId = currentUserProvider.requireCurrentUser().userId();
     return ResponseEntity.ok(ApiResponseWrapper.success(postService.getPost(postId, viewerId)));
+  }
+
+  @PatchMapping("/posts/{postId}")
+  @Operation(
+      summary = "Update own post",
+      description = "Partially updates a post owned by the current user (content, and job_meta for JOB posts). Post type and media are immutable. Requires JWT."
+  )
+  @ApiResponse(responseCode = "200", description = "Updated")
+  @ApiResponse(responseCode = "403", description = "Not the post owner")
+  @ApiResponse(responseCode = "404", description = "Post not found or deleted")
+  ResponseEntity<ApiResponseWrapper<PostResponse>> updatePost(
+      @Parameter(description = "Post UUID", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+      @PathVariable UUID postId,
+      @Valid @RequestBody UpdatePostRequest request
+  ) {
+    UUID userId = currentUserProvider.requireCurrentUser().userId();
+    return ResponseEntity.ok(ApiResponseWrapper.success(postService.updatePost(postId, userId, request)));
   }
 
   @DeleteMapping("/posts/{postId}")
