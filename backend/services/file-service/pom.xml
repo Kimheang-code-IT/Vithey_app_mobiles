@@ -16,7 +16,7 @@
   <description>File upload, download, and MinIO storage service</description>
 
   <properties>
-    <minio.version>8.5.12</minio.version>
+    <minio.version>8.6.0</minio.version>
   </properties>
 
   <dependencies>
