@@ -1,0 +1,13 @@
+# Copy into Docker build stage before service src — keeps parent POM reactor valid
+COPY infrastructure/eureka-server/pom.xml infrastructure/eureka-server/pom.xml
+COPY infrastructure/config-server/pom.xml infrastructure/config-server/pom.xml
+COPY services/api-gateway/pom.xml services/api-gateway/pom.xml
+COPY services/auth-service/pom.xml services/auth-service/pom.xml
+COPY services/user-profile-service/pom.xml services/user-profile-service/pom.xml
+COPY services/file-service/pom.xml services/file-service/pom.xml
+COPY services/content-service/pom.xml services/content-service/pom.xml
+COPY services/career-service/pom.xml services/career-service/pom.xml
+COPY services/finance-service/pom.xml services/finance-service/pom.xml
+COPY services/chat-service/pom.xml services/chat-service/pom.xml
+COPY services/notification-service/pom.xml services/notification-service/pom.xml
+COPY services/map-service/pom.xml services/map-service/pom.xml

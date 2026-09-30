@@ -1,0 +1,13 @@
+# Docker build context exclusions
+**/target/
+.git/
+.idea/
+.vscode/
+*.iml
+.env
+.env.*
+!**/.env.example
+agent-tools/
+terminals/
+**/*.md
+!DOCKER.md

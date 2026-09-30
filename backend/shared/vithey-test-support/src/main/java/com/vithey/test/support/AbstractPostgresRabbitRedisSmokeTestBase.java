@@ -1,0 +1,35 @@
+package com.vithey.test.support;
+
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+
+@Testcontainers(disabledWithoutDocker = true)
+public abstract class AbstractPostgresRabbitRedisSmokeTestBase {
+
+  @Container
+  protected static final PostgreSQLContainer<?> POSTGRES =
+      new PostgreSQLContainer<>("postgres:16-alpine");
+
+  @Container
+  protected static final RabbitMQContainer RABBIT =
+      new RabbitMQContainer("rabbitmq:3.13-management-alpine");
+
+  @Container
+  protected static final GenericContainer<?> REDIS = new GenericContainer<>(
+      DockerImageName.parse("redis:7-alpine")
+  ).withExposedPorts(6379);
+
+  @DynamicPropertySource
+  static void registerProperties(DynamicPropertyRegistry registry) {
+    IntegrationTestProperties.applyCommon(registry);
+    IntegrationTestProperties.applyPostgres(registry, POSTGRES);
+    IntegrationTestProperties.applyRabbit(registry, RABBIT);
+    IntegrationTestProperties.applyRedis(registry, REDIS);
+  }
+}

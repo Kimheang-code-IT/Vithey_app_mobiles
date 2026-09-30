@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: career-service
+  datasource:
+    url: ${CAREER_DB_URL:jdbc:postgresql://localhost:5432/career_db}
+    username: ${CAREER_DB_USERNAME:postgres}
+    password: ${CAREER_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}

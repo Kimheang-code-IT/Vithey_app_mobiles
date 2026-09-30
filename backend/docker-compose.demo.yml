@@ -1,0 +1,220 @@
+# Profile M demo overrides — use WITH the main compose from backend/:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#
+# All resource limits are env-driven. Copy backend/.env.example -> backend/.env
+# and tune there; nothing below needs editing to scale.
+#
+# Goals (plan.md):
+#   - All Vithey services live on one PC
+#   - Env-tunable RAM / JVM heaps (defaults sized for ~3 users)
+#   - external-services/ai-core (Python) is the only AI engine (no Java ai-service)
+#   - No GDCE / general-service
+#   - map-service on shared Postgres (map_db), opt-in via COMPOSE_PROFILES=map
+
+name: vithey
+
+# Defaults below apply when backend/.env is absent, so the stack still boots.
+# Pool/concurrency values are forwarded to the JVMs and read by
+# infrastructure/config-repo/application.yml.
+x-java-demo: &java-demo
+  JAVA_TOOL_OPTIONS: ${SERVICE_JAVA_OPTS:--XX:+UseSerialGC -Xms96m -Xmx192m -XX:MaxMetaspaceSize=96m}
+  DB_POOL_MAX: ${DB_POOL_MAX:-5}
+  DB_POOL_MIN: ${DB_POOL_MIN:-1}
+  RABBIT_CONCURRENCY: ${RABBIT_CONCURRENCY:-1}
+  RABBIT_MAX_CONCURRENCY: ${RABBIT_MAX_CONCURRENCY:-2}
+
+x-java-platform: &java-platform
+  JAVA_TOOL_OPTIONS: ${PLATFORM_JAVA_OPTS:--XX:+UseSerialGC -Xms64m -Xmx160m -XX:MaxMetaspaceSize=96m}
+
+x-java-gateway: &java-gateway
+  JAVA_TOOL_OPTIONS: ${GATEWAY_JAVA_OPTS:--XX:+UseSerialGC -Xms96m -Xmx256m -XX:MaxMetaspaceSize=128m}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "2"
+
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-40}
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-96MB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-4MB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-256MB}
+    mem_limit: ${PG_MEM_LIMIT:-384m}
+    logging: *logging
+
+  redis:
+    command: ["redis-server", "--maxmemory", "${REDIS_MAXMEMORY:-64mb}", "--maxmemory-policy", "allkeys-lru"]
+    mem_limit: ${REDIS_MEM_LIMIT:-96m}
+    logging: *logging
+
+  rabbitmq:
+    mem_limit: ${RABBITMQ_MEM_LIMIT:-192m}
+    logging: *logging
+
+  minio:
+    mem_limit: ${MINIO_MEM_LIMIT:-128m}
+    logging: *logging
+
+  eureka-server:
+    environment:
+      <<: *java-platform
+      SERVER_PORT: 8761
+    mem_limit: ${PLATFORM_MEM_LIMIT:-256m}
+    logging: *logging
+
+  config-server:
+    environment:
+      <<: *java-platform
+      SERVER_PORT: 8888
+      CONFIG_REPO_LOCATION: file:/app/config-repo
+      EUREKA_URL: http://eureka-server:8761/eureka/
+    mem_limit: ${PLATFORM_MEM_LIMIT:-256m}
+    logging: *logging
+
+  auth-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  user-profile-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  file-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  content-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  career-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  fake-payment-service:
+    mem_limit: ${FAKE_PAYMENT_MEM_LIMIT:-192m}
+    logging: *logging
+
+  finance-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  chat-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  notification-service:
+    environment:
+      <<: *java-demo
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  api-gateway:
+    environment:
+      <<: *java-gateway
+    mem_limit: ${GATEWAY_MEM_LIMIT:-384m}
+    logging: *logging
+
+  # ── map on shared postgres (map_db) — opt-in: COMPOSE_PROFILES=map ────────
+  map-service:
+    profiles: ["map"]
+    build:
+      context: .
+      dockerfile: services/map-service/Dockerfile
+      args:
+        SERVICE_PORT: 8090
+    image: vithey-map-service:local
+    container_name: vithey-map-service
+    env_file:
+      - services/map-service/.env.example
+    environment:
+      <<: *java-demo
+      MAP_DB_URL: jdbc:postgresql://postgres:5432/map_db
+      MAP_DB_USERNAME: postgres
+      MAP_DB_PASSWORD: postgres
+      SERVER_PORT: 8090
+      SPRING_PROFILES_ACTIVE: docker
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_ENABLED: "true"
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 12
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+    mem_limit: ${SERVICE_MEM_LIMIT:-320m}
+    logging: *logging
+
+  # ── Python AI engine (CV generation + Flutter AI chat) ───────────────────
+  ai-core:
+    build:
+      context: ../external-services/ai-core
+      dockerfile: Dockerfile
+    image: vithey-ai-core:local
+    container_name: vithey-ai-core
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://openrouter.ai/api/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-z-ai/glm-5.3-flash}
+      AI_CORE_WORKERS: ${AI_CORE_WORKERS:-1}
+      MAX_POSTS_PER_BUILD: "20"
+      MAX_CONTENT_CHARS: "2000"
+      MAX_TOKENS: "2000"
+      TIMEOUT_SECONDS: "60"
+      API_RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_MAX_SIZE: "128"
+      LOG_LEVEL: INFO
+    env_file:
+      - path: ../external-services/ai-core/.env
+        required: false
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')\""]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 8
+    networks:
+      - vithey-network
+    restart: unless-stopped
+    mem_limit: ${AI_CORE_MEM_LIMIT:-256m}
+    logging: *logging

@@ -1,0 +1,25 @@
+# Shared production overrides — activate with SPRING_PROFILES_ACTIVE=prod
+# Secrets MUST be supplied via environment (no dev defaults).
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# API docs are dev-facing only.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

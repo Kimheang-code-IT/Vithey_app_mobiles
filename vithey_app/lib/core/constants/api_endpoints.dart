@@ -1,0 +1,70 @@
+class ApiEndpoints {
+  ApiEndpoints._();
+
+  static const authRegister = '/auth/register';
+  static const authLogin = '/auth/login';
+  static const authGoogle = '/auth/google';
+  static const authRefresh = '/auth/refresh';
+  static const authLogout = '/auth/logout';
+  static const authMe = '/auth/me';
+  static const authChangePassword = '/auth/me/password';
+  static const authForgotPassword = '/auth/forgot-password';
+  static const usersMeSettings = '/users/me/settings';
+  static const usersMe = '/users/me';
+  static const paymentsAlerts = '/payments/alerts';
+  static String userById(String id) => '/users/$id';
+  static String userPosts(String id) => '/users/$id/posts';
+  static const usersSearch = '/users/search';
+  static const posts = '/posts';
+  static String postById(String id) => '/posts/$id';
+  static String postComments(String id) => '/posts/$id/comments';
+  static String postCommentById(String postId, String commentId) =>
+      '/posts/$postId/comments/$commentId';
+  static String postReactions(String id) => '/posts/$id/reactions';
+  static String userFollow(String id) => '/users/$id/follow';
+  static const filesUpload = '/files/upload';
+  static const fees = '/fees';
+  static const payments = '/payments';
+  static const studentsVerify = '/students/verify';
+  static const conversations = '/conversations';
+  static const conversationsRequest = '/message-requests';
+  static const conversationsStart = '/conversations/start';
+  static const messageRequests = '/message-requests';
+  static String conversationMessages(String id) => '/conversations/$id/messages';
+  static String conversationAccept(String id) => '/conversations/$id/accept';
+  static String conversationDecline(String id) => '/conversations/$id/decline';
+  static String conversationBlock(String id) => '/conversations/$id/block';
+  static String messageRead(String id) => '/messages/$id/read';
+  static String userReport(String userId) => '/users/$userId/report';
+  static const aiChat = '/ai/chat';
+  static const aiChatStream = '/ai/chat/stream';
+  static const aiSessions = '/ai/sessions';
+  static String aiSessionById(String id) => '/ai/sessions/$id';
+  static String aiSessionMessages(String id) => '/ai/sessions/$id/messages';
+  static String aiRegenerateMessage(String messageId) => '/ai/messages/$messageId/regenerate';
+  static String aiCancelChatRequest(String requestId) => '/ai/chat/requests/$requestId';
+  static const aiCvGenerate = '/ai/cv/generate';
+  static const aiCvSuggest = '/ai/cv/suggest';
+  static const notifications = '/notifications';
+  static const notificationsUnreadCount = '/notifications/unread-count';
+  static const notificationsReadAll = '/notifications/read-all';
+  static const notificationsDevices = '/notifications/devices';
+  static String notificationById(String id) => '/notifications/$id';
+  static String notificationRead(String id) => '/notifications/$id/read';
+  static String notificationDeviceByToken(String token) => '/notifications/devices/$token';
+  static const usersMeCv = '/users/me/cv';
+  static String jobApplications() => '/job-applications';
+  static String jobApplicationById(String id) => '/job-applications/$id';
+  static String jobApplicationStatus(String id) => '/job-applications/$id/status';
+  static String fileDownload(String id) => '/files/$id/download';
+  static String jobApplicationCvPreview(String applicationId) =>
+      '/job-applications/$applicationId/cv-preview';
+
+  static const placesNearby = '/places/nearby';
+  static const placesSearch = '/places/search';
+  static const placesAutocomplete = '/places/autocomplete';
+  static String placeById(String id) => '/places/$id';
+  static const placesFavorites = '/places/favorites';
+  static String placeFavoriteById(String id) => '/places/favorites/$id';
+  static const placesHistory = '/places/history';
+}

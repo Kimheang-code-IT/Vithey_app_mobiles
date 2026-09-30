@@ -1,0 +1,61 @@
+# Environment (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# Secrets & credentials (never commit)
+vithey-secrets/
+client_secret*.json
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+google-services.json
+GoogleService-Info.plist
+**/Secrets.xcconfig
+
+# Java / Maven
+**/target/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.pub-cache/
+**/.pub/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Gradle
+**/.gradle/
+
+# Logs
+*.log
+
+# Office temp files
+~$*
+
+# Postman — local collections/environments (keep files on disk, untracked)
+postman/

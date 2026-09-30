@@ -1,0 +1,66 @@
+# Build and run ONLY map-service (with its own private Postgres):
+#   docker compose up -d --build
+#
+# 1) Start shared infrastructure first (once):
+#      cd ../../infrastructure && docker compose up -d
+# 2) Then from this folder:
+#      docker compose up -d --build
+#
+# Note: GOOGLE_PLACES_API_KEY must be set (copy .env.example to .env first).
+
+services:
+  map-postgres:
+    image: postgres:16-alpine
+    container_name: vithey-map-postgres
+    environment:
+      POSTGRES_DB: map_db
+      POSTGRES_USER: ${MAP_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${MAP_DB_PASSWORD:-postgres}
+    volumes:
+      - map-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MAP_DB_USERNAME:-postgres} -d map_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  map-service:
+    build:
+      context: ../..
+      dockerfile: services/map-service/Dockerfile
+      args:
+        SERVICE_PORT: 8090
+    image: vithey-map-service:local
+    container_name: vithey-map-service
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.example
+        required: false
+    environment:
+      MAP_DB_URL: jdbc:postgresql://map-postgres:5432/map_db
+    depends_on:
+      map-postgres:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+volumes:
+  map-postgres-data:
+
+networks:
+  vithey-network:
+    external: true
+    name: vithey-network

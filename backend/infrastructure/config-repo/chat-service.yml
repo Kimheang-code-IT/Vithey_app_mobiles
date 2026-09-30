@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8087}
+
+spring:
+  application:
+    name: chat-service
+  datasource:
+    url: ${CHAT_DB_URL:jdbc:postgresql://localhost:5432/chat_db}
+    username: ${CHAT_DB_USERNAME:postgres}
+    password: ${CHAT_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}

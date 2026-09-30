@@ -1,0 +1,33 @@
+# Build and run Eureka from this folder:
+#   docker compose up -d --build
+#
+# Requires vithey-network (created by infrastructure/docker-compose.yml):
+#   cd .. && docker compose up -d
+
+services:
+  eureka-server:
+    build:
+      context: ../..
+      dockerfile: infrastructure/eureka-server/Dockerfile
+      args:
+        SERVICE_PORT: 8761
+    image: vithey-eureka-server:local
+    container_name: vithey-eureka-server
+    environment:
+      SERVER_PORT: 8761
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+networks:
+  vithey-network:
+    external: true
+    name: vithey-network

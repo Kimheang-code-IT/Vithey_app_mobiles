@@ -1,0 +1,16 @@
+package com.vithey.auth;
+
+import com.vithey.test.support.AbstractInMemoryContextTestBase;
+import com.vithey.test.support.WithMockMessaging;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@WithMockMessaging
+class AuthServiceContextTest extends AbstractInMemoryContextTestBase {
+
+  @Test
+  void contextLoads() {}
+}

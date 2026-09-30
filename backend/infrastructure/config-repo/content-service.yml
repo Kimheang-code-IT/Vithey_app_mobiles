@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: content-service
+  datasource:
+    url: ${CONTENT_DB_URL:jdbc:postgresql://localhost:5432/content_db}
+    username: ${CONTENT_DB_USERNAME:postgres}
+    password: ${CONTENT_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}

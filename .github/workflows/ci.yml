@@ -1,0 +1,268 @@
+# Level 1 — Pull request validation (feature/* -> dev).
+#
+# The workflow itself is NOT path-filtered so that the single required check
+# "CI Gate" always reports. Changed components are detected internally and
+# individual jobs skip when they are not applicable.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend_any: ${{ steps.filter.outputs.backend_any }}
+      backend_full: ${{ steps.filter.outputs.backend_full }}
+      backend_services: ${{ steps.filter.outputs.backend_services }}
+      flutter: ${{ steps.filter.outputs.flutter }}
+      ai_core: ${{ steps.filter.outputs.ai_core }}
+      fake_payment: ${{ steps.filter.outputs.fake_payment }}
+      monitoring: ${{ steps.filter.outputs.monitoring }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Compute changed components
+        shell: bash
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED="$(git diff --name-only "$BASE" "$HEAD")"
+          echo "Changed files:"; echo "$CHANGED"
+
+          backend_any=false
+          backend_full=false
+          services=""
+          if echo "$CHANGED" | grep -qE '^backend/'; then
+            backend_any=true
+            while IFS= read -r f; do
+              case "$f" in
+                backend/services/*)
+                  rest="${f#backend/services/}"
+                  svc="${rest%%/*}"
+                  if [ -n "$svc" ] && [ "$rest" != "$svc" ]; then
+                    services="$services $svc"
+                  else
+                    backend_full=true
+                  fi
+                  ;;
+                *)
+                  backend_full=true ;;
+              esac
+            done <<< "$CHANGED"
+          fi
+          if [ "$backend_full" = "true" ]; then
+            services="$(ls backend/services)"
+          fi
+          json="["
+          first=1
+          while IFS= read -r s; do
+            [ -z "$s" ] && continue
+            if [ $first -eq 1 ]; then first=0; else json="$json,"; fi
+            json="$json\"$s\""
+          done <<< "$(echo "$services" | tr ' ' '\n' | sed '/^$/d' | sort -u)"
+          json="$json]"
+          [ "$json" = "[]" ] && json='["noop"]'
+
+          echo "backend_any=$backend_any" >> "$GITHUB_OUTPUT"
+          echo "backend_full=$backend_full" >> "$GITHUB_OUTPUT"
+          echo "backend_services=$json" >> "$GITHUB_OUTPUT"
+          echo "flutter=$(echo "$CHANGED" | grep -qE '^vithey_app/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "ai_core=$(echo "$CHANGED" | grep -qE '^external-services/ai-core/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "fake_payment=$(echo "$CHANGED" | grep -qE '^external-services/fake-payment-service/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "monitoring=$(echo "$CHANGED" | grep -qE '^monitoring/' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "docker=$(echo "$CHANGED" | grep -qE '(docker-compose.*\.ya?ml$|/Dockerfile$|^\.github/workflows/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend (${{ matrix.service }})
+    needs: changes
+    if: needs.changes.outputs.backend_any == 'true' && needs.changes.outputs.backend_full != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.backend_services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.service != 'noop'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: No backend module changed
+        if: matrix.service == 'noop'
+        run: echo "Only non-module backend files changed; nothing to test here."
+      - name: Test ${{ matrix.service }}
+        if: matrix.service != 'noop'
+        run: mvn -B -f backend/pom.xml -pl services/${{ matrix.service }} -am test
+      - name: Upload surefire reports
+        if: failure() && matrix.service != 'noop'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.service }}-reports
+          path: backend/services/${{ matrix.service }}/target/surefire-reports/
+          if-no-files-found: ignore
+
+  backend-full:
+    name: Backend (full reactor)
+    needs: changes
+    if: needs.changes.outputs.backend_full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run full backend test suite
+        run: mvn -B -f backend/pom.xml test
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-full-reports
+          path: backend/**/target/surefire-reports/
+          if-no-files-found: ignore
+
+  flutter:
+    name: Flutter
+    needs: changes
+    if: needs.changes.outputs.flutter == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: vithey_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.5'
+          cache: true
+      - name: Prepare env file for assets
+        run: cp .env.example .env
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  ai-core:
+    name: AI Core
+    needs: changes
+    if: needs.changes.outputs.ai_core == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: external-services/ai-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: external-services/ai-core/pyproject.toml
+      - run: pip install -e ".[server,dev]"
+      - run: pytest -q
+
+  fake-payment:
+    name: Fake Payment
+    needs: changes
+    if: needs.changes.outputs.fake_payment == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: external-services/fake-payment-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: external-services/fake-payment-service/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  monitoring:
+    name: Monitoring config
+    needs: changes
+    if: needs.changes.outputs.monitoring == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Prometheus config
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:latest check config /etc/prometheus/prometheus.yml
+      - name: Validate Grafana provisioning and dashboards
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, json, yaml
+          for f in glob.glob('monitoring/grafana/provisioning/**/*.yml', recursive=True):
+              yaml.safe_load(open(f, encoding='utf-8')); print('OK', f)
+          for f in glob.glob('monitoring/grafana/dashboards/*.json'):
+              json.load(open(f, encoding='utf-8')); print('OK', f)
+          PY
+
+  docker-config:
+    name: Docker Compose config
+    needs: changes
+    if: needs.changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose files
+        run: |
+          docker compose -f backend/docker-compose.yml config --quiet
+          docker compose -f backend/docker-compose.yml -f backend/docker-compose.demo.yml config --quiet
+          docker compose -f backend/infrastructure/docker-compose.yml config --quiet
+          docker compose -f monitoring/docker-compose.yml config --quiet
+          for d in backend/services/*/; do
+            echo "-> $d"
+            docker compose -f "$d/docker-compose.yml" config --quiet
+          done
+
+  ci-gate:
+    name: CI Gate
+    needs:
+      - changes
+      - backend
+      - backend-full
+      - flutter
+      - ai-core
+      - fake-payment
+      - monitoring
+      - docker-config
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate required jobs
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if echo '${{ toJSON(needs) }}' | grep -Eq '"result": *"(failure|cancelled)"'; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All applicable jobs passed (skipped jobs are not failures)."
