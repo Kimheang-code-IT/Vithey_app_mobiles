@@ -1,0 +1,72 @@
+name: Feature request
+description: Suggest a new feature or improvement for Vithey / AUB Connect.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion.
+
+        **Do not paste secrets.** Never include passwords, tokens, API keys,
+        `.env` values, `client_secret*.json`, or private keys.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve? Who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you would like.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      multiple: true
+      options:
+        - Flutter
+        - API Gateway
+        - Auth
+        - Career
+        - Chat
+        - Content
+        - File
+        - Finance
+        - Map
+        - Notification
+        - User Profile
+        - Shared Backend
+        - Infrastructure
+        - AI Core
+        - Fake Payment
+        - Monitoring
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How will we know this is done?
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

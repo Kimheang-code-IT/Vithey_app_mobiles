@@ -1,0 +1,31 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${AUTH_DB_USERNAME:postgres}
+    password: ${AUTH_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+vithey:
+  mail:
+    mode: ${VITHEY_MAIL_MODE:log}
+    from: ${VITHEY_MAIL_FROM:noreply@vithey.local}
+  oauth:
+    google:
+      # Web OAuth client ID; the Google ID token audience must match this value.
+      web-client-id: ${GOOGLE_WEB_CLIENT_ID:}
+      jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}

@@ -1,0 +1,12 @@
+{
+  "dart.runPubGetOnPubspecChanges": true,
+  "dart.openDevTools": "flutter",
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.rulers": [80]
+  },
+  "files.associations": {
+    ".env": "dotenv",
+    ".env.example": "dotenv"
+  }
+}

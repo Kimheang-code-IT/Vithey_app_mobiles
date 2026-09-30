@@ -1,0 +1,17 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: file-service
+  datasource:
+    url: ${FILE_DB_URL:jdbc:postgresql://localhost:5432/file_db}
+    username: ${FILE_DB_USERNAME:postgres}
+    password: ${FILE_DB_PASSWORD:postgres}
+
+vithey:
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    buckets: ${MINIO_BUCKETS:avatars,cvs,posters,videos}

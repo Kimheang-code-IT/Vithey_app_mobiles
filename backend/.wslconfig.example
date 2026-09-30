@@ -1,0 +1,21 @@
+# Docker Desktop on Windows uses the WSL2 backend. This file caps how much RAM
+# and CPU WSL (and therefore Docker) may use, so containers can never starve the
+# host. It applies to the whole machine, not just this project.
+#
+# Install (from backend/):
+#   .\scripts\set-docker-limits.ps1            # uses the defaults below
+#   .\scripts\set-docker-limits.ps1 -Memory 8GB -Processors 6
+# Then restart Docker Desktop (the script runs: wsl --shutdown).
+#
+# Tune the numbers to your PC. The example targets a 12-16 GB machine with
+# ~6 GB reserved for the Vithey stack.
+
+[wsl2]
+memory=6GB
+processors=4
+swap=2GB
+
+[experimental]
+# Windows 11: hand unused memory back to Windows and keep the disk image small.
+autoMemoryReclaim=gradual
+sparseVhd=true

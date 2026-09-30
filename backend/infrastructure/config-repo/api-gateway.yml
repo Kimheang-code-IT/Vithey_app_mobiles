@@ -1,0 +1,187 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          order: 0
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**,/api/v1/students/verify
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: career-user-cv
+          order: 0
+          uri: lb://career-service
+          predicates:
+            - Path=/api/v1/users/me/cv,/api/v1/users/me/cv/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: content-user-social
+          order: 0
+          uri: lb://content-service
+          predicates:
+            - Path=/api/v1/users/*/follow,/api/v1/users/*/followers,/api/v1/users/*/following,/api/v1/users/*/posts
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: file-service
+          order: 0
+          uri: lb://file-service
+          predicates:
+            - Path=/api/v1/files/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: content-service
+          order: 0
+          uri: lb://content-service
+          predicates:
+            - Path=/api/v1/posts/**,/api/v1/comments/**,/api/v1/reactions/**,/api/v1/follows/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: career-service
+          order: 0
+          uri: lb://career-service
+          predicates:
+            - Path=/api/v1/jobs/**,/api/v1/job-applications/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: finance-service
+          order: 0
+          uri: lb://finance-service
+          predicates:
+            - Path=/api/v1/fees/**,/api/v1/payments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: chat-service
+          order: 0
+          uri: lb://chat-service
+          predicates:
+            - Path=/api/v1/conversations/**,/api/v1/messages/**,/api/v1/message-requests/**,/api/v1/users/*/report
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: chat-websocket
+          order: 0
+          uri: lb:ws://chat-service
+          predicates:
+            - Path=/ws/**
+        - id: notification-service
+          order: 0
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: ai-core
+          order: 0
+          uri: http://ai-core:8100
+          predicates:
+            - Path=/api/v1/ai/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: map-service
+          order: 0
+          uri: lb://map-service
+          predicates:
+            - Path=/api/v1/places/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.places-replenish-rate:30}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.places-burst-capacity:60}
+                redis-rate-limiter.requested-tokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+        - id: user-profile-service
+          order: 1
+          uri: lb://user-profile-service
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${vithey.gateway.rate-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${vithey.gateway.rate-limit.burst-capacity:100}
+                redis-rate-limiter.requestedTokens: ${vithey.gateway.rate-limit.requested-tokens:1}
+                key-resolver: "#{@rateLimitKeyResolver}"
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  cors:
+    allowed-origins: ${VITHEY_CORS_ALLOWED_ORIGINS:*}
+  gateway:
+    rate-limit:
+      replenish-rate: ${VITHEY_GATEWAY_RATE_LIMIT_REPLENISH:100}
+      burst-capacity: ${VITHEY_GATEWAY_RATE_LIMIT_BURST:100}
+      requested-tokens: ${VITHEY_GATEWAY_RATE_LIMIT_TOKENS:1}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+
+eureka:
+  client:
+    enabled: false

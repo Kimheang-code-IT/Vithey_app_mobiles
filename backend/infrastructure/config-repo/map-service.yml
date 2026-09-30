@@ -1,0 +1,10 @@
+server:
+  port: ${SERVER_PORT:8090}
+
+spring:
+  application:
+    name: map-service
+  datasource:
+    url: ${MAP_DB_URL:jdbc:postgresql://localhost:5432/map_db}
+    username: ${MAP_DB_USERNAME:postgres}
+    password: ${MAP_DB_PASSWORD:postgres}

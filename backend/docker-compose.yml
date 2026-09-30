@@ -1,0 +1,497 @@
+# Vithey full stack — one command from backend/:
+#   docker compose up -d --build
+#   docker compose down
+#
+# Infra-only:  cd infrastructure && docker compose up -d --build
+# One service: cd services/<name> && docker compose up -d --build
+# Or:         .\scripts\start-all.ps1
+
+name: vithey
+
+x-service-health: &service-health
+  interval: 15s
+  timeout: 5s
+  start_period: 120s
+  retries: 12
+
+services:
+  # ── Shared data / messaging ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: vithey-postgres
+    env_file:
+      - infrastructure/.env.example
+    ports:
+      - "15432:5432"
+    volumes:
+      - vithey-postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vithey"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: vithey-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - vithey-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: vithey-rabbitmq
+    env_file:
+      - infrastructure/.env.example
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - vithey-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: vithey-minio
+    env_file:
+      - infrastructure/.env.example
+    command: server /data --console-address ":9001"
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - vithey-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  # ── Spring Cloud platform ────────────────────────────────────────────────
+  eureka-server:
+    build:
+      context: .
+      dockerfile: infrastructure/eureka-server/Dockerfile
+      args:
+        SERVICE_PORT: 8761
+    image: vithey-eureka-server:local
+    container_name: vithey-eureka-server
+    environment:
+      SERVER_PORT: 8761
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  config-server:
+    build:
+      context: .
+      dockerfile: infrastructure/config-server/Dockerfile
+      args:
+        SERVICE_PORT: 8888
+    image: vithey-config-server:local
+    container_name: vithey-config-server
+    environment:
+      SERVER_PORT: 8888
+      CONFIG_REPO_LOCATION: file:/app/config-repo
+      EUREKA_URL: http://eureka-server:8761/eureka/
+    volumes:
+      # Live config so gateway AI route updates without rebuilding config-server
+      - ./infrastructure/config-repo:/app/config-repo:ro
+    ports:
+      - "8888:8888"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  # ── Microservices ────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+      args:
+        SERVICE_PORT: 8081
+    image: vithey-auth-service:local
+    container_name: vithey-auth-service
+    env_file:
+      - services/auth-service/.env.example
+    environment:
+      # Google Sign-In: Web OAuth client ID (public). Set in backend/.env.
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  user-profile-service:
+    build:
+      context: .
+      dockerfile: services/user-profile-service/Dockerfile
+      args:
+        SERVICE_PORT: 8082
+    image: vithey-user-profile-service:local
+    container_name: vithey-user-profile-service
+    env_file:
+      - services/user-profile-service/.env.example
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  file-service:
+    build:
+      context: .
+      dockerfile: services/file-service/Dockerfile
+      args:
+        SERVICE_PORT: 8083
+    image: vithey-file-service:local
+    container_name: vithey-file-service
+    env_file:
+      - services/file-service/.env.example
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  content-service:
+    build:
+      context: .
+      dockerfile: services/content-service/Dockerfile
+      args:
+        SERVICE_PORT: 8084
+    image: vithey-content-service:local
+    container_name: vithey-content-service
+    env_file:
+      - services/content-service/.env.example
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  career-service:
+    build:
+      context: .
+      dockerfile: services/career-service/Dockerfile
+      args:
+        SERVICE_PORT: 8085
+    image: vithey-career-service:local
+    container_name: vithey-career-service
+    env_file:
+      - services/career-service/.env.example
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  # Fake external payment provider (Python/FastAPI) — DEV/DEMO/UAT ONLY.
+  # Container listens on 8090; host port defaults to 8110 to avoid clashing
+  # with map-service (host 8090).
+  fake-payment-service:
+    build:
+      context: ../external-services/fake-payment-service
+      dockerfile: Dockerfile
+    image: vithey-fake-payment-service:local
+    container_name: vithey-fake-payment-service
+    env_file:
+      - ../external-services/fake-payment-service/.env.example
+    environment:
+      FAKE_PAYMENT_API_KEY: ${FAKE_PAYMENT_API_KEY:-change-me}
+    ports:
+      - "${FAKE_PAYMENT_HOST_PORT:-8110}:8090"
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')\""]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  finance-service:
+    build:
+      context: .
+      dockerfile: services/finance-service/Dockerfile
+      args:
+        SERVICE_PORT: 8086
+    image: vithey-finance-service:local
+    container_name: vithey-finance-service
+    env_file:
+      - services/finance-service/.env.example
+    environment:
+      FAKE_PAYMENT_BASE_URL: ${FAKE_PAYMENT_BASE_URL:-http://fake-payment-service:8090}
+      FAKE_PAYMENT_API_KEY: ${FAKE_PAYMENT_API_KEY:-change-me}
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      fake-payment-service:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  chat-service:
+    build:
+      context: .
+      dockerfile: services/chat-service/Dockerfile
+      args:
+        SERVICE_PORT: 8087
+    image: vithey-chat-service:local
+    container_name: vithey-chat-service
+    env_file:
+      - services/chat-service/.env.example
+    ports:
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+      args:
+        SERVICE_PORT: 8088
+    image: vithey-notification-service:local
+    container_name: vithey-notification-service
+    env_file:
+      - services/notification-service/.env.example
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  ai-core:
+    build:
+      context: ../external-services/ai-core
+      dockerfile: Dockerfile
+    image: vithey-ai-core:local
+    container_name: vithey-ai-core
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://openrouter.ai/api/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-z-ai/glm-5.3-flash}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_db
+      VITHEY_JWT_SECRET: ${VITHEY_JWT_SECRET:-change-me-to-a-strong-256-bit-secret-for-local-dev}
+      USER_PROFILE_BASE_URL: http://user-profile-service:8082
+      CONTENT_BASE_URL: http://content-service:8084
+      AI_CHAT_MODE: stub
+      AI_CV_MAX_POSTS: "20"
+      MAX_POSTS_PER_BUILD: "20"
+      MAX_CONTENT_CHARS: "2000"
+      MAX_TOKENS: "2000"
+      TIMEOUT_SECONDS: "60"
+      API_RATE_LIMIT_PER_MINUTE: "20"
+      CACHE_MAX_SIZE: "128"
+      LOG_LEVEL: INFO
+    env_file:
+      - path: ../external-services/ai-core/.env
+        required: false
+    ports:
+      - "8100:8100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 8
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')\""]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  map-service:
+    build:
+      context: .
+      dockerfile: services/map-service/Dockerfile
+      args:
+        SERVICE_PORT: 8090
+    image: vithey-map-service:local
+    container_name: vithey-map-service
+    env_file:
+      - path: services/map-service/.env
+        required: false
+      - path: services/map-service/.env.example
+        required: false
+    environment:
+      MAP_DB_URL: jdbc:postgresql://postgres:5432/map_db
+      MAP_DB_USERNAME: postgres
+      MAP_DB_PASSWORD: postgres
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+      args:
+        SERVICE_PORT: 8080
+    image: vithey-api-gateway:local
+    container_name: vithey-api-gateway
+    env_file:
+      - services/api-gateway/.env.example
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+volumes:
+  vithey-postgres-data:
+  vithey-redis-data:
+  vithey-rabbitmq-data:
+  vithey-minio-data:
+
+networks:
+  vithey-network:
+    name: vithey-network
+    driver: bridge

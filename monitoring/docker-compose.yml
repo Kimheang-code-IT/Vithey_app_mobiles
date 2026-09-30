@@ -1,0 +1,69 @@
+# Vithey monitoring — opt-in, minimal: Prometheus + Grafana only.
+#
+#   docker compose --profile monitoring up -d
+#
+# Services declare profiles: ["monitoring"], so a plain `docker compose up`
+# starts nothing here. Keep it off for the lean local phase.
+#
+# Requires the external network `vithey-network`, created by the backend stack
+# (backend/docker-compose.yml). Start that first.
+
+x-monitoring: &monitoring
+  profiles: ["monitoring"]
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "2"
+
+services:
+  prometheus:
+    <<: *monitoring
+    image: prom/prometheus:latest
+    container_name: vithey-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - vithey-prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Short local retention (default 6h) keeps CPU/RAM/disk low for dev.
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-6h}
+    mem_limit: ${PROMETHEUS_MEM_LIMIT:-512m}
+    logging: *logging
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+  grafana:
+    <<: *monitoring
+    image: grafana/grafana:latest
+    container_name: vithey-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - vithey-grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    mem_limit: ${GRAFANA_MEM_LIMIT:-384m}
+    logging: *logging
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+volumes:
+  vithey-prometheus-data:
+  vithey-grafana-data:
+
+networks:
+  vithey-network:
+    external: true

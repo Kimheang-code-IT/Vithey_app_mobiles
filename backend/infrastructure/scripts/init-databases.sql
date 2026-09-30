@@ -1,0 +1,10 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE user_db;
+CREATE DATABASE file_db;
+CREATE DATABASE content_db;
+CREATE DATABASE career_db;
+CREATE DATABASE finance_db;
+CREATE DATABASE chat_db;
+CREATE DATABASE notification_db;
+CREATE DATABASE ai_db;
+CREATE DATABASE map_db;

@@ -1,0 +1,38 @@
+# Build and run ONLY finance-service from this folder:
+#   docker compose up -d --build
+#
+# 1) Start infrastructure first (once):
+#      cd ../../infrastructure && docker compose up -d
+# 2) Then from this folder:
+#      docker compose up -d --build
+#
+# Or from backend root:
+#   .\scripts\docker-build-service.ps1 finance-service -Up
+
+services:
+  finance-service:
+    build:
+      context: ../..
+      dockerfile: services/finance-service/Dockerfile
+      args:
+        SERVICE_PORT: 8086
+    image: vithey-finance-service:local
+    container_name: vithey-finance-service
+    env_file:
+      - .env.example
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+    networks:
+      - vithey-network
+    restart: unless-stopped
+
+networks:
+  vithey-network:
+    external: true
+    name: vithey-network

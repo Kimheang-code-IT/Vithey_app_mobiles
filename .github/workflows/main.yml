@@ -1,0 +1,187 @@
+# Level 3 — Strongest practical validation for a dev -> main pull request.
+
+name: Main Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (full reactor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run full backend test suite
+        run: mvn -B -f backend/pom.xml test
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-backend-reports
+          path: backend/**/target/surefire-reports/
+          if-no-files-found: ignore
+
+  flutter:
+    name: Flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: vithey_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.5'
+          cache: true
+      - name: Prepare env file for assets
+        run: cp .env.example .env
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  ai-core:
+    name: AI Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: external-services/ai-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: external-services/ai-core/pyproject.toml
+      - run: pip install -e ".[server,dev]"
+      - run: pytest -q
+
+  fake-payment:
+    name: Fake Payment
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: external-services/fake-payment-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: external-services/fake-payment-service/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  docker-config:
+    name: Docker Compose config
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose files
+        run: |
+          docker compose -f backend/docker-compose.yml config --quiet
+          docker compose -f backend/docker-compose.yml -f backend/docker-compose.demo.yml config --quiet
+          docker compose -f backend/infrastructure/docker-compose.yml config --quiet
+          docker compose -f monitoring/docker-compose.yml config --quiet
+          for d in backend/services/*/; do
+            echo "-> $d"
+            docker compose -f "$d/docker-compose.yml" config --quiet
+          done
+
+  monitoring:
+    name: Monitoring config
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Prometheus config
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:latest check config /etc/prometheus/prometheus.yml
+      - name: Validate Grafana provisioning and dashboards
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, json, yaml
+          for f in glob.glob('monitoring/grafana/provisioning/**/*.yml', recursive=True):
+              yaml.safe_load(open(f, encoding='utf-8')); print('OK', f)
+          for f in glob.glob('monitoring/grafana/dashboards/*.json'):
+              json.load(open(f, encoding='utf-8')); print('OK', f)
+          PY
+
+  docker-build:
+    name: Build image (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { service: eureka-server, context: backend, dockerfile: infrastructure/eureka-server/Dockerfile, port: 8761 }
+          - { service: config-server, context: backend, dockerfile: infrastructure/config-server/Dockerfile, port: 8888 }
+          - { service: api-gateway, context: backend, dockerfile: services/api-gateway/Dockerfile, port: 8080 }
+          - { service: auth-service, context: backend, dockerfile: services/auth-service/Dockerfile, port: 8081 }
+          - { service: user-profile-service, context: backend, dockerfile: services/user-profile-service/Dockerfile, port: 8082 }
+          - { service: file-service, context: backend, dockerfile: services/file-service/Dockerfile, port: 8083 }
+          - { service: content-service, context: backend, dockerfile: services/content-service/Dockerfile, port: 8084 }
+          - { service: career-service, context: backend, dockerfile: services/career-service/Dockerfile, port: 8085 }
+          - { service: finance-service, context: backend, dockerfile: services/finance-service/Dockerfile, port: 8086 }
+          - { service: chat-service, context: backend, dockerfile: services/chat-service/Dockerfile, port: 8087 }
+          - { service: notification-service, context: backend, dockerfile: services/notification-service/Dockerfile, port: 8088 }
+          - { service: map-service, context: backend, dockerfile: services/map-service/Dockerfile, port: 8090 }
+          - { service: ai-core, context: external-services/ai-core, dockerfile: Dockerfile, port: 8100 }
+          - { service: fake-payment-service, context: external-services/fake-payment-service, dockerfile: Dockerfile, port: 8090 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: false
+          tags: vithey-${{ matrix.service }}:validation
+          build-args: SERVICE_PORT=${{ matrix.port }}
+          cache-from: type=gha,scope=vithey-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=vithey-${{ matrix.service }}
+
+  main-gate:
+    name: Main Gate
+    needs:
+      - backend
+      - flutter
+      - ai-core
+      - fake-payment
+      - docker-config
+      - monitoring
+      - docker-build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate required jobs
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if echo '${{ toJSON(needs) }}' | grep -Eq '"result": *"(failure|cancelled)"'; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All required jobs passed."

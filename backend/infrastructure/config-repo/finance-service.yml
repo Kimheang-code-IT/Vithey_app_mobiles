@@ -1,0 +1,35 @@
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  application:
+    name: finance-service
+  datasource:
+    url: ${FINANCE_DB_URL:jdbc:postgresql://localhost:5432/finance_db}
+    username: ${FINANCE_DB_USERNAME:postgres}
+    password: ${FINANCE_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}
+  finance:
+    alert-due-days: ${VITHEY_FINANCE_ALERT_DUE_DAYS:7}
+    alert-cron: ${VITHEY_FINANCE_ALERT_CRON:0 0 8 * * *}
+  payment:
+    provider:
+      # Demo-only external provider (fake-payment-service). Compose sets
+      # FAKE_PAYMENT_BASE_URL to the service name.
+      base-url: ${FAKE_PAYMENT_BASE_URL:http://localhost:8090}
+      api-key: ${FAKE_PAYMENT_API_KEY:change-me}
+      connect-timeout-ms: ${FAKE_PAYMENT_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${FAKE_PAYMENT_READ_TIMEOUT_MS:10000}
+      scenario: ${FAKE_PAYMENT_SCENARIO:SUCCESS}
+      payment-method: ${FAKE_PAYMENT_METHOD:DEMO_CARD}
+      idempotency-enabled: ${FAKE_PAYMENT_IDEMPOTENCY_ENABLED:true}

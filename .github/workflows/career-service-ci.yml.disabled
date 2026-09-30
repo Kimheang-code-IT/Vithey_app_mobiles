@@ -1,0 +1,55 @@
+name: career-service CI
+
+on:
+  push:
+    branches: [main, Prompt, dev, kimheang]
+    paths:
+      - 'backend/pom.xml'
+      - 'backend/infrastructure/config-repo/career-service.yml'
+      - 'backend/infrastructure/config-server/**'
+      - 'backend/infrastructure/eureka-server/**'
+      - 'backend/services/career-service/**'
+      - '.github/workflows/career-service-ci.yml'
+  pull_request:
+    branches: [main, Prompt, dev, kimheang]
+    paths:
+      - 'backend/pom.xml'
+      - 'backend/infrastructure/config-repo/career-service.yml'
+      - 'backend/infrastructure/config-server/**'
+      - 'backend/infrastructure/eureka-server/**'
+      - 'backend/services/career-service/**'
+      - '.github/workflows/career-service-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run career-service tests
+        run: mvn -B -f backend/pom.xml -pl services/career-service -am test
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: career-service-test-reports
+          path: backend/services/career-service/target/surefire-reports/
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build career-service image
+        run: docker build -f backend/services/career-service/Dockerfile --build-arg SERVICE_PORT=8085 -t vithey-career-service:ci backend
+
+  compose-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate career-service compose
+        run: docker compose -f backend/services/career-service/docker-compose.yml config

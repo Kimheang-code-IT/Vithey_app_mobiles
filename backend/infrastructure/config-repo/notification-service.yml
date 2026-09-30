@@ -1,0 +1,23 @@
+server:
+  port: ${SERVER_PORT:8088}
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    username: ${NOTIFICATION_DB_USERNAME:postgres}
+    password: ${NOTIFICATION_DB_PASSWORD:postgres}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}
+  firebase:
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}

@@ -1,0 +1,12 @@
+# Build context hygiene for the ai_core image.
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+tests/
+.git/
+*.pyc
+*.log

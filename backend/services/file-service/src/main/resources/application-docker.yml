@@ -1,0 +1,20 @@
+spring:
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+  datasource:
+    url: ${FILE_DB_URL:jdbc:postgresql://postgres:5432/file_db}
+    username: ${FILE_DB_USERNAME:postgres}
+    password: ${FILE_DB_PASSWORD:postgres}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+vithey:
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://minio:9000}
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:19000}

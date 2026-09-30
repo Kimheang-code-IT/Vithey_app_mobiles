@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Vithey
+    orgId: 1
+    folder: Vithey App
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

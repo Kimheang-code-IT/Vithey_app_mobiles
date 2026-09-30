@@ -1,0 +1,134 @@
+# Infrastructure only. Prefer full stack from backend/:
+#   docker compose up -d --build
+#
+# Infra-only from this folder:
+#   docker compose up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vithey-postgres
+    env_file:
+      - .env.example
+    ports:
+      - "15433:5432"
+    volumes:
+      - vithey-postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vithey"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: vithey-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - vithey-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: vithey-rabbitmq
+    env_file:
+      - .env.example
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - vithey-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: vithey-minio
+    env_file:
+      - .env.example
+    command: server /data --console-address ":9001"
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - vithey-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vithey-network
+
+  eureka-server:
+    build:
+      context: ..
+      dockerfile: infrastructure/eureka-server/Dockerfile
+      args:
+        SERVICE_PORT: 8761
+    image: vithey-eureka-server:local
+    container_name: vithey-eureka-server
+    environment:
+      SERVER_PORT: 8761
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    networks:
+      - vithey-network
+
+  config-server:
+    build:
+      context: ..
+      dockerfile: infrastructure/config-server/Dockerfile
+      args:
+        SERVICE_PORT: 8888
+    image: vithey-config-server:local
+    container_name: vithey-config-server
+    environment:
+      SERVER_PORT: 8888
+      CONFIG_REPO_LOCATION: file:/app/config-repo
+      EUREKA_URL: http://eureka-server:8761/eureka/
+    ports:
+      - "8888:8888"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    networks:
+      - vithey-network
+
+volumes:
+  vithey-postgres-data:
+  vithey-redis-data:
+  vithey-rabbitmq-data:
+  vithey-minio-data:
+
+networks:
+  vithey-network:
+    name: vithey-network
+    driver: bridge

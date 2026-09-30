@@ -1,0 +1,77 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${AUTH_DB_USERNAME:postgres}
+    password: ${AUTH_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+vithey:
+  jwt:
+    secret: ${VITHEY_JWT_SECRET:change-me-to-a-strong-256-bit-secret-for-local-dev}
+    access-token-ttl: ${VITHEY_ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${VITHEY_REFRESH_TOKEN_TTL:7d}
+  events:
+    exchange: ${VITHEY_EVENTS_EXCHANGE:vithey.events}
+  oauth:
+    google:
+      # Web OAuth client ID; the ID token audience must match this value.
+      web-client-id: ${GOOGLE_WEB_CLIENT_ID:}
+      jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+  mail:
+    mode: ${VITHEY_MAIL_MODE:log}
+    from: ${VITHEY_MAIL_FROM:noreply@vithey.local}
+

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/Kimheang-code-IT/Vithey_app_mobiles/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories. Do not open a public issue for them.
+  - name: Questions and discussions
+    url: https://github.com/Kimheang-code-IT/Vithey_app_mobiles/discussions
+    about: Ask questions or discuss the project here.
