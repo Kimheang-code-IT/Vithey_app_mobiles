@@ -50,8 +50,15 @@ jobs:
             backend_any=true
             while IFS= read -r f; do
               case "$f" in
-                backend/services/*/*)
-                  services="$services $(echo "$f" | cut -d/ -f3)" ;;
+                backend/services/*)
+                  rest="${f#backend/services/}"
+                  svc="${rest%%/*}"
+                  if [ -n "$svc" ] && [ "$rest" != "$svc" ]; then
+                    services="$services $svc"
+                  else
+                    backend_full=true
+                  fi
+                  ;;
                 *)
                   backend_full=true ;;
               esac
