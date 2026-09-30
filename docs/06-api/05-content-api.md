@@ -17,6 +17,7 @@ though the gateway has a `/api/v1/jobs/**` route. [VERIFIED: `PostController`, `
 | POST | `/api/v1/posts` | JWT | any | Create post | `CreatePostRequest` | `PostResponse` | 400, 401 |
 | GET | `/api/v1/posts/{postId}` | JWT | any | Post detail | path | `PostResponse` | 401, 404 |
 | DELETE | `/api/v1/posts/{postId}` | JWT | owner | Soft-delete own post | path | `204` | 401, 403, 404 |
+| PATCH | `/api/v1/posts/{postId}` | JWT | owner | Update own post (content; `job_meta` for JOB) | `UpdatePostRequest` | `PostResponse` | 400, 401, 403, 404 |
 | GET | `/api/v1/users/{userId}/posts` | JWT | any | A user's posts | `?type=&page=&limit=` | `PostResponse[]` + meta | 401 |
 | GET | `/api/v1/posts/{postId}/comments` | JWT | any | List comments | `?page=&limit=` | `CommentResponse[]` + meta | 401, 404 |
 | POST | `/api/v1/posts/{postId}/comments` | JWT | any | Add comment (+mentions) | `CreateCommentRequest` | `CommentResponse` | 400, 401, 404 |
@@ -112,11 +113,11 @@ DB allows `STANDARD`) are defect #4. See
 
 ## 5. Known gaps
 
-- `PATCH /api/v1/posts/{post_id}` is referenced by Flutter/`api_docs.md` but has **no controller
-  mapping** → `404`. [VERIFIED]
+- `PATCH /api/v1/posts/{postId}` is implemented in `PostController` (owner-only: updates `content`
+  and, for JOB posts, `job_meta`). Post type and media are immutable. [VERIFIED]
 - The gateway `/api/v1/jobs/**` route has no controller. [VERIFIED]
 
 ## 6. TBD
 
-- Post edit feature (endpoint, versioning): `TBD — Requires confirmation.`
+- Post edit concurrency/versioning (optimistic locking): `TBD — Requires confirmation.`
 - Feed ranking algorithm (only recency + follow graph is verifiable): `TBD — Requires confirmation.`

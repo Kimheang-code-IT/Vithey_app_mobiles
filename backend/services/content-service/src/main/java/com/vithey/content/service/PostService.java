@@ -2,6 +2,7 @@ package com.vithey.content.service;
 
 import com.vithey.content.client.FileServiceClient;
 import com.vithey.content.dto.request.CreatePostRequest;
+import com.vithey.content.dto.request.UpdatePostRequest;
 import com.vithey.content.dto.response.PostResponse;
 import com.vithey.content.entity.Post;
 import com.vithey.content.entity.PostType;
@@ -91,6 +92,38 @@ public class PostService {
     post.setDeletedAt(OffsetDateTime.now(ZoneOffset.UTC));
     post.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
     postRepository.save(post);
+  }
+
+  @Transactional
+  public PostResponse updatePost(UUID postId, UUID userId, UpdatePostRequest request) {
+    Post post = requireActivePost(postId);
+    if (!post.getAuthorId().equals(userId)) {
+      throw new ApiException(ErrorCode.FORBIDDEN);
+    }
+
+    if (request.content() != null) {
+      post.setContent(request.content());
+    }
+
+    if (post.getType() == PostType.JOB && request.jobMeta() != null) {
+      CreatePostRequest.JobMetaRequest jobMeta = request.jobMeta();
+      if (jobMeta.title() != null && !jobMeta.title().isBlank()) {
+        post.setJobTitle(jobMeta.title());
+      }
+      if (jobMeta.description() != null) {
+        post.setJobDescription(jobMeta.description());
+      }
+      if (jobMeta.requirement() != null) {
+        post.setJobRequirement(jobMeta.requirement());
+      }
+      if (jobMeta.deadline() != null) {
+        post.setJobDeadline(jobMeta.deadline());
+      }
+    }
+
+    post.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+    Post saved = postRepository.save(post);
+    return postEnrichmentService.enrich(saved, userId);
   }
 
   @Transactional(readOnly = true)
