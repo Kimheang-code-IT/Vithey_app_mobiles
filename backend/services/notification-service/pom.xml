@@ -16,7 +16,7 @@
   <description>In-app notifications, unread counts, and FCM push delivery</description>
 
   <properties>
-    <firebase-admin.version>9.4.1</firebase-admin.version>
+    <firebase-admin.version>9.11.0</firebase-admin.version>
   </properties>
 
   <dependencies>
