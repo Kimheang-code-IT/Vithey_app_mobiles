@@ -33,7 +33,7 @@ dependencies:
   mobile_scanner: ^7.4.0
   google_maps_flutter: ^2.18.0
   geolocator: ^14.0.2
-  pdf: ^3.13.0
+  pdf: ^3.13.1
   gpt_markdown: ^1.2.1
   google_sign_in: ^7.2.0
 
