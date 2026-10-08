@@ -99,6 +99,57 @@ class DeepSeekClient:
         except Exception as e:
             raise AIClientError(f"LLM API call failed: {e}") from e
 
+    def ask_text(self, system_prompt: str, user_prompt: str) -> str:
+        """Send one chat completion and return plain text.
+
+        Used by the chatbot; transient failures are retried with backoff.
+        """
+        last_error: Exception | None = None
+        attempts = 1 + max(0, self._config.MAX_RETRIES)
+
+        for attempt in range(attempts):
+            try:
+                self.rate_limiter.acquire()
+                return self._call_text_once(system_prompt, user_prompt)
+            except AIResponseValidationError:
+                raise
+            except AIClientError as e:
+                last_error = e
+                if attempt < attempts - 1:
+                    delay = self._config.RETRY_BACKOFF_SECONDS * (2**attempt)
+                    logger.warning(
+                        "LLM chat call failed (attempt %d/%d): %s -- retrying in %.1fs",
+                        attempt + 1,
+                        attempts,
+                        e,
+                        delay,
+                    )
+                    time.sleep(delay)
+
+        raise AIClientError(
+            f"LLM chat call failed after {attempts} attempt(s): {last_error}"
+        ) from last_error
+
+    def _call_text_once(self, system_prompt: str, user_prompt: str) -> str:
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=self.temperature,
+                max_tokens=self._config.MAX_TOKENS,
+            )
+            content = response.choices[0].message.content
+            if content is None or not str(content).strip():
+                raise AIResponseValidationError("LLM returned empty content.")
+            return str(content).strip()
+        except AIResponseValidationError:
+            raise
+        except Exception as e:
+            raise AIClientError(f"LLM API call failed: {e}") from e
+
     @staticmethod
     def _strip_json_fence(text: str) -> str:
         cleaned = text.strip()

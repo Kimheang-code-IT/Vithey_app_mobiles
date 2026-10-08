@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   get: ^4.6.6
   shadcn_flutter: ^0.0.52
   dio: ^5.4.0
@@ -58,3 +60,11 @@ flutter:
     - assets/icons/Google Icon.png
     - assets/icons/skills/
     - .env
+
+  fonts:
+    - family: NotoSansKhmer
+      fonts:
+        - asset: assets/fonts/NotoSansKhmer.ttf
+    - family: KantumruyPro
+      fonts:
+        - asset: assets/fonts/KantumruyPro.ttf

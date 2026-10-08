@@ -2,6 +2,7 @@ import 'package:aub_connect_app/core/constants/app_assets.dart';
 import 'package:aub_connect_app/core/constants/app_colors.dart';
 import 'package:aub_connect_app/core/theme/app_semantic_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import 'package:aub_connect_app/core/icons/vithey_icons.dart';
 
@@ -19,20 +20,20 @@ class LanguageOption {
   final String flagAsset;
 }
 
-const languageOptions = [
-  LanguageOption(
-    code: 'en',
-    label: 'English (US)',
-    subtitle: 'English',
-    flagAsset: AppAssets.englishLanguage,
-  ),
-  LanguageOption(
-    code: 'km',
-    label: 'Khmer',
-    subtitle: 'ភាសាខ្មែរ',
-    flagAsset: AppAssets.khmerLanguage,
-  ),
-];
+List<LanguageOption> get languageOptions => [
+      LanguageOption(
+        code: 'en',
+        label: 'language_english'.tr,
+        subtitle: 'language_english_subtitle'.tr,
+        flagAsset: AppAssets.englishLanguage,
+      ),
+      LanguageOption(
+        code: 'km',
+        label: 'language_khmer'.tr,
+        subtitle: 'language_khmer_subtitle'.tr,
+        flagAsset: AppAssets.khmerLanguage,
+      ),
+    ];
 
 /// Settings language picker — same option rows as auth Select Language.
 class LanguagePickerSheet extends StatefulWidget {
@@ -104,13 +105,13 @@ class _LanguagePickerSheetState extends State<LanguagePickerSheet> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Select Language',
+              'select_language'.tr,
               textAlign: TextAlign.start,
               style: context.text.headlineSmall?.copyWith(height: 1.25),
             ),
             const SizedBox(height: 12),
             Text(
-              'Choose your preferred language for the app.',
+              'select_language_subtitle'.tr,
               textAlign: TextAlign.start,
               style: context.text.bodyMedium?.copyWith(
                 height: 1.4,

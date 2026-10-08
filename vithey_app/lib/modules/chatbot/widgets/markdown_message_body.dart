@@ -30,50 +30,68 @@ class MarkdownMessageBody extends StatelessWidget {
 
     final colors = context.appColors;
     final scheme = context.scheme;
+    final brightness = Theme.of(context).brightness;
     final base = context.text.bodyLarge?.copyWith(
-      fontSize: 15,
-      height: 1.5,
+      fontSize: 16,
+      height: 1.6,
       color: scheme.onSurface,
     );
 
-    return GptMarkdown(
-      text,
-      style: base,
-      // Stream + final both preview as formatted UI (not raw markdown).
-      isStreaming: streaming,
-      animation: GptMarkdownAnimation.none,
-      followLinkColor: true,
-      onLinkTap: (url, title) async {
-        final uri = Uri.tryParse(url);
-        if (uri == null) return;
-        if (uri.scheme == 'javascript') return;
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      },
-      onCodeCopy: (code) => onCodeCopied?.call(code),
-      codeBuilder: (context, name, code, closed) {
-        return CodeBlockCard(
-          code: code.trimRight(),
-          language: name.isEmpty ? null : name,
-          onCopied: () => onCodeCopied?.call(code.trimRight()),
-        );
-      },
-      styleSheet: GptMarkdownStyleSheet(
-        codeBlock: CodeBlockStyle(
-          backgroundColor: colors.inputFill,
-          borderColor: colors.border,
-          showCopyButton: false,
-        ),
-        table: TableStyle(
-          borderColor: colors.border,
-          borderWidth: 0.6,
-          headerBackground: colors.inputFill,
-          rowStripeColor: colors.cardSurface,
-        ),
-        link: LinkStyle(color: scheme.primary),
-        blockQuote: BlockQuoteStyle(
-          backgroundColor: colors.inputFill,
-          barColor: colors.border,
-          barWidth: 3,
+    // The app's TextTheme leaves `headlineLarge`/`headlineMedium` at Material's
+    // ~32/28px defaults, so gpt_markdown's `#`/`##` headings render enormous.
+    // Pin every heading level to a ChatGPT-like scale close to body size.
+    final markdownTheme = GptMarkdownThemeData(
+      brightness: brightness,
+      h1: base?.copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+      h2: base?.copyWith(fontSize: 18, fontWeight: FontWeight.w600),
+      h3: base?.copyWith(fontSize: 17, fontWeight: FontWeight.w600),
+      h4: base?.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+      h5: base?.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+      h6: base?.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+      autoAddDividerLineAfterH1: false,
+    );
+
+    return GptMarkdownTheme(
+      gptThemeData: markdownTheme,
+      child: GptMarkdown(
+        text,
+        style: base,
+        // Stream + final both preview as formatted UI (not raw markdown).
+        isStreaming: streaming,
+        animation: GptMarkdownAnimation.none,
+        followLinkColor: true,
+        onLinkTap: (url, title) async {
+          final uri = Uri.tryParse(url);
+          if (uri == null) return;
+          if (uri.scheme == 'javascript') return;
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        },
+        onCodeCopy: (code) => onCodeCopied?.call(code),
+        codeBuilder: (context, name, code, closed) {
+          return CodeBlockCard(
+            code: code.trimRight(),
+            language: name.isEmpty ? null : name,
+            onCopied: () => onCodeCopied?.call(code.trimRight()),
+          );
+        },
+        styleSheet: GptMarkdownStyleSheet(
+          codeBlock: CodeBlockStyle(
+            backgroundColor: colors.inputFill,
+            borderColor: colors.border,
+            showCopyButton: false,
+          ),
+          table: TableStyle(
+            borderColor: colors.border,
+            borderWidth: 0.6,
+            headerBackground: colors.inputFill,
+            rowStripeColor: colors.cardSurface,
+          ),
+          link: LinkStyle(color: scheme.primary),
+          blockQuote: BlockQuoteStyle(
+            backgroundColor: colors.inputFill,
+            barColor: colors.border,
+            barWidth: 3,
+          ),
         ),
       ),
     );

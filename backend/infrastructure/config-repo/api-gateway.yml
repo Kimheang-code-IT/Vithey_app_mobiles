@@ -11,6 +11,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
   cloud:
+    loadbalancer:
+      cache:
+        # Keep the service-instance cache fresh so a just-registered instance
+        # is routable within seconds (default 35s causes startup 503s).
+        ttl: ${LB_CACHE_TTL:5s}
     gateway:
       routes:
         - id: auth-service
@@ -168,6 +173,7 @@ eureka:
     enabled: ${EUREKA_CLIENT_ENABLED:true}
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: ${EUREKA_FETCH_INTERVAL_SECONDS:5}
 
 vithey:
   jwt:

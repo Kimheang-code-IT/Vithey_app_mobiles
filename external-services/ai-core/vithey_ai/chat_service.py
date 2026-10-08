@@ -6,9 +6,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from collections.abc import Callable
+
 from .chat_registry import ChatRequestRegistry
 from .chat_stubs import normalize_topic, stub_reply
 from .db import Database
+from .logging_conf import get_logger
+
+logger = get_logger(__name__)
 
 
 def _now() -> datetime:
@@ -23,12 +28,32 @@ def _title_from_message(message: str) -> str:
 
 
 class ChatService:
-    def __init__(self, db: Database | None, registry: ChatRequestRegistry | None = None):
+    def __init__(
+        self,
+        db: Database | None,
+        registry: ChatRequestRegistry | None = None,
+        llm_reply: Callable[[str | None, str], str] | None = None,
+    ):
         self._db = db
         self.registry = registry or ChatRequestRegistry()
+        # Optional LLM-backed reply; falls back to the demo stub when unset.
+        self._llm_reply = llm_reply
         # Fallback store when DATABASE_URL is missing (local unit tests).
         self._mem_sessions: dict[uuid.UUID, dict[str, Any]] = {}
         self._mem_messages: dict[uuid.UUID, list[dict[str, Any]]] = {}
+
+    def generate_reply(self, topic: str | None, message: str) -> str:
+        """Produce an assistant reply via the LLM, or the demo stub.
+
+        A missing/failed LLM never breaks the chat: it logs and degrades to
+        the deterministic stub reply instead of returning a 5xx.
+        """
+        if self._llm_reply is not None:
+            try:
+                return self._llm_reply(topic, message)
+            except Exception as exc:  # noqa: BLE001 - degrade gracefully
+                logger.warning("LLM chat reply failed, using stub: %s", exc)
+        return stub_reply(topic, message)
 
     def chat(
         self,
@@ -40,7 +65,7 @@ class ChatService:
         request_id = self.registry.register(user_id)
         try:
             prepared = self._prepare_turn(user_id, message, topic, session_id)
-            reply = stub_reply(prepared["topic"], message)
+            reply = self.generate_reply(prepared["topic"], message)
             assistant_id = self._complete_turn(prepared, reply)
             return {
                 "session_id": str(prepared["session_id"]),
@@ -66,7 +91,7 @@ class ChatService:
         if user_msg is None:
             raise ValueError("No user message to regenerate from")
 
-        reply = stub_reply(session["topic"], user_msg["content"])
+        reply = self.generate_reply(session["topic"], user_msg["content"])
         self._update_message_content(message_id, reply)
         self._touch_session(session["id"])
         return {

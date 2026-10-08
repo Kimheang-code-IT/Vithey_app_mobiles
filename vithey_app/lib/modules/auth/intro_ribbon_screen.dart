@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:aub_connect_app/core/constants/app_assets.dart';
 import 'package:aub_connect_app/core/constants/app_colors.dart';
-import 'package:aub_connect_app/core/constants/app_strings.dart';
+
 import 'package:aub_connect_app/core/theme/app_semantic_colors.dart';
 import 'package:aub_connect_app/core/widgets/app_logo.dart';
 import 'package:aub_connect_app/core/widgets/custom_button.dart';
@@ -257,7 +257,7 @@ class _IntroRibbonScreenState extends State<IntroRibbonScreen>
                           opacity: skipOpacity,
                           child: SafeArea(
                             child: CustomButton(
-                              label: 'Skip',
+                              label: 'skip'.tr,
                               variant: CustomButtonVariant.ghost,
                               foregroundColor: AppColors.accentLight,
                               onPressed: _enterAuth,
@@ -272,7 +272,7 @@ class _IntroRibbonScreenState extends State<IntroRibbonScreen>
                       left: 0,
                       child: SafeArea(
                         child: CustomButton(
-                          label: AppStrings.back,
+                          label: 'back'.tr,
                           variant: CustomButtonVariant.ghost,
                           foregroundColor: AppColors.accentLight,
                           onPressed: _onFixedBack,
@@ -306,7 +306,7 @@ class _IntroRibbonScreenState extends State<IntroRibbonScreen>
                               isLastSlide: onLastOnboarding,
                               nextLabel: settled ==
                                       IntroRibbonController.pageLanguage
-                                  ? 'Continue'
+                                  ? 'continue'.tr
                                   : null,
                             ),
                           ),
@@ -370,7 +370,7 @@ class _LanguagePage extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Select Language',
+                                'select_language'.tr,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 22,
@@ -381,7 +381,7 @@ class _LanguagePage extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Choose your preferred language for the app.',
+                                'select_language_subtitle'.tr,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14,
@@ -404,8 +404,8 @@ class _LanguagePage extends StatelessWidget {
                                     children: [
                                       _LanguageRow(
                                         flagAsset: AppAssets.englishLanguage,
-                                        title: 'English (US)',
-                                        subtitle: 'English',
+                                        title: 'language_english'.tr,
+                                        subtitle: 'language_english_subtitle'.tr,
                                         selected:
                                             selected == AppLanguageOption.en,
                                         secondary: secondary,
@@ -416,8 +416,8 @@ class _LanguagePage extends StatelessWidget {
                                       Divider(height: 1, color: border),
                                       _LanguageRow(
                                         flagAsset: AppAssets.khmerLanguage,
-                                        title: 'Khmer',
-                                        subtitle: 'ភាសាខ្មែរ',
+                                        title: 'language_khmer'.tr,
+                                        subtitle: 'language_khmer_subtitle'.tr,
                                         selected:
                                             selected == AppLanguageOption.km,
                                         secondary: secondary,

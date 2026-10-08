@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:aub_connect_app/core/localization/app_translations.dart';
 import 'package:aub_connect_app/core/storage/local_storage_service.dart';
 import 'package:aub_connect_app/modules/auth/auth_controller.dart';
 import 'package:aub_connect_app/modules/auth/language/select_language_controller.dart';
@@ -32,26 +33,23 @@ class IntroRibbonController extends GetxController {
   final isBusy = false.obs;
   final selectedLanguage = AppLanguageOption.en.obs;
 
-  final onboardingSlides = const [
-    OnboardingSlide(
-      title: 'Connect with Your Campus Community',
-      description:
-          'Discover posts, connect with friends, and stay updated.',
-      imageAsset: 'assets/images/onboarding/onboarding_1.png',
-    ),
-    OnboardingSlide(
-      title: 'Jobs & Career Growth',
-      description:
-          'Discover job posts, apply with your CV, and connect with opportunities on campus.',
-      imageAsset: 'assets/images/onboarding/onboarding_2.png',
-    ),
-    OnboardingSlide(
-      title: 'Finance, Chat & AI Support',
-      description:
-          'Track tuition payments, chat privately, and get AI help for study and career.',
-      imageAsset: 'assets/images/onboarding/onboarding_3.png',
-    ),
-  ];
+  List<OnboardingSlide> get onboardingSlides => [
+        OnboardingSlide(
+          title: 'onboarding_1_title'.tr,
+          description: 'onboarding_1_desc'.tr,
+          imageAsset: 'assets/images/onboarding/onboarding_1.png',
+        ),
+        OnboardingSlide(
+          title: 'onboarding_2_title'.tr,
+          description: 'onboarding_2_desc'.tr,
+          imageAsset: 'assets/images/onboarding/onboarding_2.png',
+        ),
+        OnboardingSlide(
+          title: 'onboarding_3_title'.tr,
+          description: 'onboarding_3_desc'.tr,
+          imageAsset: 'assets/images/onboarding/onboarding_3.png',
+        ),
+      ];
 
   WaveRibbonProfile profileFor(int page) => WaveRibbon.all[page.clamp(0, 5)];
 
@@ -123,6 +121,7 @@ class IntroRibbonController extends GetxController {
     try {
       await _localStorage.saveLanguage(code);
       await _localStorage.setLanguageSelected(true);
+      AppTranslations.apply(code);
       final onboardingDone = await _localStorage.isOnboardingCompleted();
       if (onboardingDone) {
         isBusy.value = false;

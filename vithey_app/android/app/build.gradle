@@ -27,6 +27,24 @@ if (googleMapsApiKey == null) {
     googleMapsApiKey = System.getenv('GOOGLE_MAPS_API_KEY') ?: ''
 }
 
+// Opt-in flag for a local-demo release APK that talks to an HTTP backend
+// (e.g. the Docker stack at 10.0.2.2:8080). Production builds must NOT set
+// this; release defaults to cleartext disabled.
+def releaseCleartext = project.hasProperty('vitheyDemoCleartext') ? 'true' : 'false'
+
+// Release signing material is owner-controlled and lives outside git.
+// Create android/key.properties (git-ignored) from key.properties.example.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+def hasReleaseKeystore = keystorePropertiesFile.exists() &&
+        keystoreProperties.containsKey('storeFile') &&
+        keystoreProperties.containsKey('keyAlias')
+
 android {
     namespace "com.vithey.aub_connect_app"
     compileSdkVersion 36
@@ -58,15 +76,32 @@ android {
         ]
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         debug {
             manifestPlaceholders += [usesCleartextTraffic: "true"]
         }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig signingConfigs.debug
-            manifestPlaceholders += [usesCleartextTraffic: "false"]
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                // No owner keystore present (e.g. local checkout). Fall back to
+                // debug signing so the release build still runs for smoke tests.
+                // A real store distribution MUST provide android/key.properties.
+                logger.warn("WARNING: android/key.properties not found; release APK will be signed with the debug key.")
+                signingConfig signingConfigs.debug
+            }
+            manifestPlaceholders += [usesCleartextTraffic: releaseCleartext]
         }
     }
 }

@@ -64,13 +64,22 @@ class ApiService {
       return ApiResponse.fromJson({}, fromJson);
     } on DioException catch (error) {
       final body = error.response?.data;
-      if (body is Map<String, dynamic>) {
+      if (body is Map<String, dynamic> &&
+          (body.containsKey('error') || body.containsKey('data'))) {
         return ApiResponse.fromJson(body, fromJson);
       }
+      // Non-envelope error (e.g. gateway 503 with an empty body). Surface the
+      // real status instead of a misleading success/fallback message.
+      final status = error.response?.statusCode;
+      final detail = error.message?.trim();
       return ApiResponse(
         error: ApiError(
-          code: 'NETWORK_ERROR',
-          message: error.message ?? 'Network request failed',
+          code: status != null ? 'HTTP_$status' : 'NETWORK_ERROR',
+          message: (detail != null && detail.isNotEmpty)
+              ? detail
+              : (status != null
+                  ? 'Request failed ($status). Please try again.'
+                  : 'Network request failed'),
         ),
       );
     }

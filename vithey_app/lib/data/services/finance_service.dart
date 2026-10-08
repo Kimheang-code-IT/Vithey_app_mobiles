@@ -68,15 +68,9 @@ class FinanceService {
   }
 
   PaymentSummary _parsePayment(Map<String, dynamic> json) {
-    final baseJson = json['base_amount'] as Map<String, dynamic>?;
-    final totalJson = json['total'] as Map<String, dynamic>?;
-    final amountJson = json['amount'] as Map<String, dynamic>? ?? {};
-    final baseAmount =
-        baseJson != null ? Money.fromJson(baseJson) : null;
-    // Prefer authoritative total when the API provides it; otherwise amount.
-    final amount = totalJson != null
-        ? Money.fromJson(totalJson)
-        : Money.fromJson(amountJson);
+    final currency = json['currency'] as String?;
+    final amount = _money(json['amount'], currency);
+    final baseAmount = _optionalMoney(json['base_amount'], currency);
     return PaymentSummary(
       id: json['payment_id']?.toString() ?? json['id']?.toString() ?? '',
       feeName: json['fee_name'] as String? ?? 'Fee',
@@ -89,20 +83,36 @@ class FinanceService {
   }
 
   PaymentInvoice _parseInvoice(Map<String, dynamic> json) {
+    final currency = json['currency'] as String?;
+    final total = _money(json['total'] ?? json['amount'], currency);
     return PaymentInvoice(
       paymentId: json['payment_id']?.toString() ?? json['id']?.toString() ?? '',
-      invoiceReference: json['invoice_reference'] as String? ?? '',
+      invoiceReference:
+          json['invoice_reference'] as String? ?? json['payment_id']?.toString() ?? '',
       feeName: json['fee_name'] as String? ?? 'Fee',
       status: _parseStatus(json['status'] as String?),
-      baseAmount: Money.fromJson(json['base_amount'] as Map<String, dynamic>? ?? {}),
-      processingFee: Money.fromJson(json['processing_fee'] as Map<String, dynamic>? ?? {}),
-      lateCharges: Money.fromJson(json['late_charges'] as Map<String, dynamic>? ?? {}),
-      total: Money.fromJson(json['total'] as Map<String, dynamic>? ?? {}),
-      dueAt: json['due_at'] != null ? DateTime.tryParse(json['due_at'].toString()) : null,
+      baseAmount: _optionalMoney(json['base_amount'], currency) ?? total,
+      processingFee: _money(json['processing_fee'] ?? 0, currency),
+      lateCharges: _money(json['late_charges'] ?? 0, currency),
+      total: total,
+      dueAt: json['due_at'] != null
+          ? DateTime.tryParse(json['due_at'].toString())
+          : DateTime.tryParse(json['due_date']?.toString() ?? ''),
       paidAt: json['paid_at'] != null ? DateTime.tryParse(json['paid_at'].toString()) : null,
       invoiceFileId: json['invoice_file_id'] as String?,
     );
   }
+
+  /// Accepts an amount as either a nested Money object (`{amount, currency}`)
+  /// or the flat backend shape (`amount` number + sibling `currency`).
+  Money _money(dynamic value, String? currency) {
+    if (value is Map<String, dynamic>) return Money.fromJson(value);
+    if (value is Map) return Money.fromJson(Map<String, dynamic>.from(value));
+    return Money.fromJson({'amount': value, 'currency': currency});
+  }
+
+  Money? _optionalMoney(dynamic value, String? currency) =>
+      value == null ? null : _money(value, currency);
 
   PaymentStatus _parseStatus(String? status) {
     switch (status?.toUpperCase()) {

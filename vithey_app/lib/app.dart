@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
+import 'package:aub_connect_app/core/localization/app_translations.dart';
 import 'package:aub_connect_app/core/alerts/in_app_alert_host.dart';
 import 'package:aub_connect_app/core/theme/app_theme.dart';
 import 'package:aub_connect_app/core/theme/vithey_scroll_behavior.dart';
@@ -18,10 +20,21 @@ class VitheyApp extends StatelessWidget {
       title: 'Vithey App',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const VitheyScrollBehavior(),
+      translations: AppTranslations(),
+      locale: Get.locale,
+      fallbackLocale: const Locale('en', 'US'),
       // shadcn_flutter widgets (text field context menu, etc.) look up
       // ShadcnLocalizations and crash if the delegate is not registered.
-      localizationsDelegates: shad.ShadcnLocalizations.localizationsDelegates,
-      supportedLocales: shad.ShadcnLocalizations.supportedLocales,
+      localizationsDelegates: [
+        ...shad.ShadcnLocalizations.localizationsDelegates,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', 'US'),
+        Locale('km', 'KH'),
+      ],
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,

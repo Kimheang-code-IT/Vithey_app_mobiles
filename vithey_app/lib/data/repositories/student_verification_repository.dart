@@ -10,13 +10,28 @@ import 'package:get/get.dart';
 
 class StudentVerificationRepository {
   StudentVerificationRepository(this._service, this._localStorage, this._flags) {
-    // Sync once so Home AppBar / Profile see the latest mock status.
-    refreshVerifiedFlag();
+    // Sync once so Home AppBar / Profile see the latest status. Guarded: at
+    // app start there may be no session yet, so never probe or throw.
+    _syncVerifiedFlagOnCreate();
   }
 
   final StudentVerificationService _service;
   final LocalStorageService _localStorage;
   final FeatureFlags _flags;
+
+  Future<void> _syncVerifiedFlagOnCreate() async {
+    try {
+      if (!useMockApi) {
+        if (!Get.isRegistered<SecureStorageService>()) return;
+        final hasToken = await Get.find<SecureStorageService>().hasAccessToken();
+        if (!hasToken) return;
+      }
+      await refreshVerifiedFlag();
+    } catch (_) {
+      // Fresh install / no session / transient error: treat as not submitted.
+      _publishVerified(VerificationStatus.notSubmitted);
+    }
+  }
 
   /// True only while status is [VerificationStatus.verified].
   /// Home finance icon and profile "Review verify" label observe this.

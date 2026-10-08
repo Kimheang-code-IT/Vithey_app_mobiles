@@ -12,7 +12,6 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..chat_service import ChatService, chunk_reply
-from ..chat_stubs import stub_reply
 from ..cv_app_service import CvAppService
 from .auth import UserDep
 from .flutter_envelope import fail, ok, page_meta
@@ -84,7 +83,9 @@ async def chat_stream(request: Request, user: UserDep, body: ChatBody):
             }
             yield _sse("meta", json.dumps(meta))
 
-            reply = stub_reply(prepared["topic"], body.message)
+            reply = await asyncio.to_thread(
+                chat_svc.generate_reply, prepared["topic"], body.message
+            )
             streamed = []
             cancelled = False
             for chunk in chunk_reply(reply):
