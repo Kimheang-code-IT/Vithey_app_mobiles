@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:aub_connect_app/core/constants/app_routes.dart';
+import 'package:aub_connect_app/core/localization/app_translations.dart';
 import 'package:aub_connect_app/core/storage/local_storage_service.dart';
 import 'package:aub_connect_app/modules/auth/onboarding/intro_morph.dart';
 
@@ -62,6 +63,7 @@ class SelectLanguageController extends GetxController {
     try {
       await _localStorage.saveLanguage(code);
       await _localStorage.setLanguageSelected(true);
+      AppTranslations.apply(code);
       final onboardingDone = await _localStorage.isOnboardingCompleted();
       if (onboardingDone) {
         Get.offAllNamed(AppRoutes.login);

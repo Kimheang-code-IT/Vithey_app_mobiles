@@ -31,9 +31,12 @@ class FinanceRepository {
         ? null
         : unpaid.reduce((a, b) => a.dueDate.isBefore(b.dueDate) ? a : b);
     final nextDue = nextDuePayment?.dueDate ?? DateTime.now();
+    // Preserve the payments' currency instead of defaulting to USD, otherwise
+    // KHR minor units render as dollars (e.g. 3,000,000 KHR -> $30,000.00).
+    final currency = payments.isNotEmpty ? payments.first.amount.currency : 'USD';
     return FinanceDashboard(
-      totalDue: Money(amountMinor: totalMinor),
-      totalPaycheck: Money(amountMinor: paycheckMinor),
+      totalDue: Money(amountMinor: totalMinor, currency: currency),
+      totalPaycheck: Money(amountMinor: paycheckMinor, currency: currency),
       nextDueDate: nextDue,
       daysRemaining: nextDue.difference(DateTime.now()).inDays.clamp(0, 999),
       summaryStatus: totalMinor == 0 ? 'Paid' : 'Not Yet Paid',

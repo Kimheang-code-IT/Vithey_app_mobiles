@@ -8,6 +8,10 @@ class DioClient {
   final SecureStorageService _secureStorage;
   Dio? _dio;
 
+  /// In-flight refresh, shared by all callers so concurrent 401s rotate the
+  /// (single-use) refresh token exactly once.
+  Future<bool>? _refreshFuture;
+
   static const _publicAuthPaths = {
     '/auth/register',
     '/auth/login',
@@ -49,7 +53,7 @@ class DioClient {
         onError: (error, handler) async {
           if (error.response?.statusCode == 401 &&
               !_publicAuthPaths.contains(error.requestOptions.path)) {
-            final refreshed = await _tryRefreshToken(client);
+            final refreshed = await _refreshTokens(client);
             if (refreshed) {
               final request = error.requestOptions;
               final token = await _secureStorage.readAccessToken();
@@ -65,6 +69,18 @@ class DioClient {
     );
 
     return client;
+  }
+
+  /// Single-flight refresh: the first 401 starts the refresh; every other
+  /// concurrent 401 awaits the same future instead of racing token rotation.
+  Future<bool> _refreshTokens(Dio client) {
+    final inFlight = _refreshFuture;
+    if (inFlight != null) return inFlight;
+    final future = _tryRefreshToken(client);
+    _refreshFuture = future;
+    return future.whenComplete(() {
+      _refreshFuture = null;
+    });
   }
 
   Future<bool> _tryRefreshToken(Dio client) async {

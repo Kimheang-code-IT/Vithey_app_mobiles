@@ -17,9 +17,11 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
     this.prefixIcon,
     this.onChanged,
+    this.onSubmitted,
     this.textInputAction,
     this.readOnly = false,
     this.onTap,
+    this.focusNode,
     this.fillColor,
   });
 
@@ -32,9 +34,12 @@ class CustomTextField extends StatelessWidget {
   final int maxLines;
   final IconData? prefixIcon;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final TextInputAction? textInputAction;
   final bool readOnly;
   final VoidCallback? onTap;
+  final FocusNode? focusNode;
+
   /// Kept for API compatibility; shadcn theme owns fill color.
   final Color? fillColor;
 
@@ -50,9 +55,11 @@ class CustomTextField extends StatelessWidget {
       maxLines: maxLines,
       prefixIcon: prefixIcon,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
       textInputAction: textInputAction,
       readOnly: readOnly,
       onTap: onTap,
+      focusNode: focusNode,
       filled: true,
     );
   }

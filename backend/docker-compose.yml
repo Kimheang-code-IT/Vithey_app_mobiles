@@ -394,14 +394,14 @@ services:
     image: vithey-ai-core:local
     container_name: vithey-ai-core
     environment:
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://openrouter.ai/api/v1}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-z-ai/glm-5.3-flash}
+      # LLM settings (DEEPSEEK_API_KEY / BASE_URL / MODEL) come from the
+      # ai-core .env via env_file. Do NOT re-declare them here: an `environment`
+      # entry overrides env_file and would blank the key with an empty default.
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_db
       VITHEY_JWT_SECRET: ${VITHEY_JWT_SECRET:-change-me-to-a-strong-256-bit-secret-for-local-dev}
       USER_PROFILE_BASE_URL: http://user-profile-service:8082
       CONTENT_BASE_URL: http://content-service:8084
-      AI_CHAT_MODE: stub
+      AI_CHAT_MODE: ${AI_CHAT_MODE:-llm}
       AI_CV_MAX_POSTS: "20"
       MAX_POSTS_PER_BUILD: "20"
       MAX_CONTENT_CHARS: "2000"

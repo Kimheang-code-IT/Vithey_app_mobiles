@@ -12,6 +12,8 @@ client_secret*.json
 *.pfx
 *.pem
 *.key
+key.properties
+**/key.properties
 google-services.json
 GoogleService-Info.plist
 **/Secrets.xcconfig

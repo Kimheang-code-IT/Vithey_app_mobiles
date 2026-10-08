@@ -38,27 +38,95 @@ class AppConfig {
   /// audience the backend is configured to accept (`GOOGLE_WEB_CLIENT_ID`).
   final String googleWebClientId;
 
+  /// Loads configuration.
+  ///
+  /// Resolution order for every value: compile-time `--dart-define` first,
+  /// then the bundled `.env` (development convenience), then a safe default.
+  /// Loading `.env` is optional: a clean checkout or a release build that
+  /// supplies values through `--dart-define` does not need the asset.
   static Future<void> init({String envFileName = '.env'}) async {
-    await dotenv.load(fileName: envFileName);
-    _instance = AppConfig._fromEnv();
+    try {
+      await dotenv.load(fileName: envFileName);
+    } catch (_) {
+      // `.env` is a developer convenience only; `--dart-define` or real
+      // environment values remain authoritative.
+    }
+    _instance = AppConfig._fromEnv().._validate();
   }
 
   factory AppConfig._fromEnv() {
-    const envFromDefine = String.fromEnvironment('APP_ENV', defaultValue: '');
-    final envRaw = envFromDefine.isNotEmpty ? envFromDefine : dotenv.env['APP_ENV'];
+    const defineEnv = String.fromEnvironment('APP_ENV', defaultValue: '');
+    const defineApiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    const defineWsBaseUrl = String.fromEnvironment('WS_BASE_URL', defaultValue: '');
+    const defineConnect = String.fromEnvironment('API_CONNECT_TIMEOUT_SECONDS', defaultValue: '');
+    const defineReceive = String.fromEnvironment('API_RECEIVE_TIMEOUT_SECONDS', defaultValue: '');
+    const defineFcmToken = String.fromEnvironment('FCM_DEBUG_TOKEN', defaultValue: '');
+    const defineGoogleClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+
+    final envRaw = _firstNonEmpty([defineEnv, _env('APP_ENV')]);
 
     return AppConfig._(
       environment: AppEnvironment.parse(envRaw),
-      apiBaseUrl: dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1',
-      wsBaseUrl: dotenv.env['WS_BASE_URL'] ?? 'ws://10.0.2.2:8080/ws',
+      apiBaseUrl: _firstNonEmpty(
+            [defineApiBaseUrl, _env('API_BASE_URL')],
+          ) ??
+          'http://10.0.2.2:8080/api/v1',
+      wsBaseUrl: _firstNonEmpty(
+            [defineWsBaseUrl, _env('WS_BASE_URL')],
+          ) ??
+          'ws://10.0.2.2:8080/ws',
       connectTimeout: Duration(
-        seconds: int.tryParse(dotenv.env['API_CONNECT_TIMEOUT_SECONDS'] ?? '') ?? 15,
+        seconds: int.tryParse(
+              _firstNonEmpty([defineConnect, _env('API_CONNECT_TIMEOUT_SECONDS')]) ?? '',
+            ) ??
+            15,
       ),
       receiveTimeout: Duration(
-        seconds: int.tryParse(dotenv.env['API_RECEIVE_TIMEOUT_SECONDS'] ?? '') ?? 30,
+        seconds: int.tryParse(
+              _firstNonEmpty([defineReceive, _env('API_RECEIVE_TIMEOUT_SECONDS')]) ?? '',
+            ) ??
+            30,
       ),
-      fcmDebugToken: dotenv.env['FCM_DEBUG_TOKEN']?.trim(),
-      googleWebClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim() ?? '',
+      fcmDebugToken: _firstNonEmpty([defineFcmToken, _env('FCM_DEBUG_TOKEN')]),
+      googleWebClientId:
+          _firstNonEmpty([defineGoogleClientId, _env('GOOGLE_WEB_CLIENT_ID')]) ?? '',
     );
+  }
+
+  /// Reads a `.env` value, tolerating an uninitialized/failed dotenv load.
+  static String? _env(String key) => dotenv.isInitialized ? dotenv.env[key] : null;
+
+  /// Returns the first non-null, non-empty (after trim) value, else null.
+  static String? _firstNonEmpty(List<String?> candidates) {
+    for (final candidate in candidates) {
+      final value = candidate?.trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  /// Fails fast on configuration that would silently break a production build.
+  void _validate() {
+    final apiUri = Uri.tryParse(apiBaseUrl);
+    if (apiUri == null || !apiUri.hasScheme || apiUri.host.isEmpty) {
+      throw StateError(
+        'AppConfig: API_BASE_URL is not a valid absolute URL ("$apiBaseUrl"). '
+        'Set it with --dart-define=API_BASE_URL=...',
+      );
+    }
+    if (environment.isProduction) {
+      if (apiUri.scheme != 'https') {
+        throw StateError(
+          'AppConfig: production requires an HTTPS API_BASE_URL, got "$apiBaseUrl". '
+          'Release builds disable cleartext traffic.',
+        );
+      }
+      final wsUri = Uri.tryParse(wsBaseUrl);
+      if (wsUri != null && wsUri.scheme == 'ws') {
+        throw StateError(
+          'AppConfig: production requires a secure WS_BASE_URL (wss://), got "$wsBaseUrl".',
+        );
+      }
+    }
   }
 }

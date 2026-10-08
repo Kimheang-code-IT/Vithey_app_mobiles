@@ -54,6 +54,11 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  health:
+    mail:
+      # Mail is optional in dev (VITHEY_MAIL_MODE=log); don't fail readiness
+      # when SMTP is unconfigured.
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
 
 springdoc:
   swagger-ui:

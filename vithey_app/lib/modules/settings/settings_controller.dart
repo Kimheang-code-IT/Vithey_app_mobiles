@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:aub_connect_app/core/constants/app_routes.dart';
+import 'package:aub_connect_app/core/localization/app_translations.dart';
 import 'package:aub_connect_app/core/theme/vithey_radii.dart';
 import 'package:aub_connect_app/core/storage/local_storage_service.dart';
 import 'package:aub_connect_app/core/theme/app_theme.dart';
@@ -81,6 +82,7 @@ class SettingsController extends GetxController {
 
   Future<void> _selectLanguage(String code) async {
     languageCode.value = code;
+    AppTranslations.apply(code);
     try {
       await _settingsRepository.saveLanguage(code);
       Get.snackbar('Vithey', 'Language preference saved');

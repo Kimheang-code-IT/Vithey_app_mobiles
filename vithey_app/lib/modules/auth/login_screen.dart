@@ -57,13 +57,14 @@ class _AuthRibbonFrameState extends State<AuthRibbonFrame>
 
   AnimationController? _ownedMorph;
   Worker? _forgotWorker;
+  final ScrollController _formScrollController = ScrollController();
 
-  Animation<double> get _morph =>
-      widget.forgotMorphListenable ?? _ownedMorph!;
+  Animation<double> get _morph => widget.forgotMorphListenable ?? _ownedMorph!;
 
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addListener(_keepFocusedFieldVisible);
     if (widget.forgotMorphListenable == null) {
       _ownedMorph = AnimationController(vsync: this, duration: _morphDuration);
       if (widget.startOnForgot) {
@@ -91,9 +92,34 @@ class _AuthRibbonFrameState extends State<AuthRibbonFrame>
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_keepFocusedFieldVisible);
     _forgotWorker?.dispose();
     _ownedMorph?.dispose();
+    _formScrollController.dispose();
     super.dispose();
+  }
+
+  void _keepFocusedFieldVisible() {
+    final focusedNode = FocusManager.instance.primaryFocus;
+    if (focusedNode == null || !focusedNode.hasFocus) return;
+
+    // Wait for the software keyboard and viewInsets animation to settle, then
+    // move the active auth field near the top of the visible form area.
+    Future<void>.delayed(const Duration(milliseconds: 220), () async {
+      if (!mounted || FocusManager.instance.primaryFocus != focusedNode) return;
+      final focusedContext = focusedNode.context;
+      if (focusedContext == null || !focusedContext.mounted) return;
+      if (focusedContext.findAncestorStateOfType<_AuthRibbonFrameState>() !=
+          this) {
+        return;
+      }
+      await Scrollable.ensureVisible(
+        focusedContext,
+        alignment: 0.16,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _handleBack() {
@@ -110,6 +136,7 @@ class _AuthRibbonFrameState extends State<AuthRibbonFrame>
   Widget build(BuildContext context) {
     final screenH = MediaQuery.sizeOf(context).height;
     final screenW = MediaQuery.sizeOf(context).width;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final formWidth = screenW < 420 ? screenW : 420.0;
 
     return AnimatedBuilder(
@@ -137,30 +164,41 @@ class _AuthRibbonFrameState extends State<AuthRibbonFrame>
         final tealBandH = screenH *
             OnboardingBackground.tealBandHeightFraction(activeProfile);
 
-        final formStack = Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            width: formWidth,
-            child: Stack(
+        final formStack = SizedBox(
+          width: formWidth,
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              if (signOpacity > 0.01)
+                IgnorePointer(
+                  ignoring: signOpacity < 0.05,
+                  child: Opacity(
+                    opacity: signOpacity,
+                    child: widget.form,
+                  ),
+                ),
+              if (widget.enableForgotMorph && forgotOpacity > 0.01)
+                IgnorePointer(
+                  ignoring: forgotOpacity < 0.05,
+                  child: Opacity(
+                    opacity: forgotOpacity,
+                    child: const AuthForgotPasswordForm(),
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        final keyboardAwareForm = SingleChildScrollView(
+          controller: _formScrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.only(bottom: keyboardInset),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: screenH),
+            child: Align(
               alignment: Alignment.bottomCenter,
-              children: [
-                if (signOpacity > 0.01)
-                  IgnorePointer(
-                    ignoring: signOpacity < 0.05,
-                    child: Opacity(
-                      opacity: signOpacity,
-                      child: widget.form,
-                    ),
-                  ),
-                if (widget.enableForgotMorph && forgotOpacity > 0.01)
-                  IgnorePointer(
-                    ignoring: forgotOpacity < 0.05,
-                    child: Opacity(
-                      opacity: forgotOpacity,
-                      child: const AuthForgotPasswordForm(),
-                    ),
-                  ),
-              ],
+              child: formStack,
             ),
           ),
         );
@@ -203,14 +241,14 @@ class _AuthRibbonFrameState extends State<AuthRibbonFrame>
                   },
                 ),
               ),
-            Positioned(left: 0, right: 0, bottom: 0, child: formStack),
+            Positioned.fill(child: keyboardAwareForm),
             if (!widget.omitFixedChrome)
               Positioned(
                 top: 0,
                 left: 0,
                 child: SafeArea(
                   child: CustomButton(
-                    label: AppStrings.back,
+                    label: 'back'.tr,
                     variant: CustomButtonVariant.ghost,
                     foregroundColor: AppColors.accentLight,
                     onPressed: _handleBack,
@@ -245,14 +283,14 @@ class AuthSignInForm extends GetView<AuthController> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                AppStrings.welcomeBack,
+                'welcome_back'.tr,
                 style: context.text.headlineSmall,
               ),
               const SizedBox(height: 20),
               CustomTextField(
                 controller: controller.emailController,
-                label: AppStrings.emailAddress,
-                hint: 'Email',
+                label: 'email_address'.tr,
+                hint: 'email_hint'.tr,
                 prefixIcon: LucideIcons.mail,
                 keyboardType: TextInputType.emailAddress,
                 validator: Validators.email,
@@ -262,8 +300,8 @@ class AuthSignInForm extends GetView<AuthController> {
               const SizedBox(height: 12),
               CustomTextField(
                 controller: controller.passwordController,
-                label: AppStrings.password,
-                hint: 'Password',
+                label: 'password'.tr,
+                hint: 'password_hint'.tr,
                 prefixIcon: LucideIcons.lock,
                 obscureText: true,
                 validator: Validators.password,
@@ -273,7 +311,7 @@ class AuthSignInForm extends GetView<AuthController> {
               Align(
                 alignment: Alignment.centerRight,
                 child: CustomButton(
-                  label: AppStrings.forgotPassword,
+                  label: 'forgot_password'.tr,
                   variant: CustomButtonVariant.ghost,
                   foregroundColor: context.scheme.primary,
                   onPressed: () {
@@ -291,25 +329,25 @@ class AuthSignInForm extends GetView<AuthController> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     controller.errorMessage.value,
-                    style:
-                        context.text.bodySmall?.copyWith(color: AppColors.error),
+                    style: context.text.bodySmall
+                        ?.copyWith(color: AppColors.error),
                   ),
                 );
               }),
               Obx(
                 () => _AuthPrimaryButton(
-                  label: AppStrings.signIn,
+                  label: 'sign_in'.tr,
                   icon: LucideIcons.logIn,
                   isLoading: controller.isLoading.value,
                   onPressed: controller.login,
                 ),
               ),
               const SizedBox(height: 16),
-              const SocialDivider(label: AppStrings.signInWith, fontSize: 12),
+              SocialDivider(label: 'sign_in_with'.tr, fontSize: 12),
               const SizedBox(height: 14),
               Obx(
                 () => OAuthButton(
-                  label: AppStrings.continueWithGoogle,
+                  label: 'continue_with_google'.tr,
                   isLoading: controller.isGoogleLoading.value,
                   onPressed: () {
                     FormErrorHost.clearAll();
@@ -322,11 +360,11 @@ class AuthSignInForm extends GetView<AuthController> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    AppStrings.noAccount,
+                    'dont_have_account'.tr,
                     style: context.text.labelMedium,
                   ),
                   CustomButton(
-                    label: AppStrings.signUp,
+                    label: 'sign_up'.tr,
                     variant: CustomButtonVariant.ghost,
                     foregroundColor: context.scheme.primary,
                     onPressed: () {
@@ -510,6 +548,10 @@ class _RegisterPart1Fields extends GetView<AuthController> {
           validator: controller.confirmPasswordValidator,
           onChanged: (_) => controller.clearError(),
           textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            FocusScope.of(context).unfocus();
+            controller.goToRegisterPart2();
+          },
         ),
       ],
     );
@@ -542,7 +584,8 @@ class _RegisterPart2Fields extends GetView<AuthController> {
           keyboardType: TextInputType.phone,
           validator: Validators.phone,
           onChanged: (_) => controller.clearError(),
-          textInputAction: TextInputAction.next,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => FocusScope.of(context).unfocus(),
         ),
         const SizedBox(height: 10),
         CustomTextField(
@@ -563,6 +606,14 @@ class _RegisterPart2Fields extends GetView<AuthController> {
 /// Forgot-password form shown inside [AuthRibbonFrame] after teal morph.
 class AuthForgotPasswordForm extends GetView<AuthController> {
   const AuthForgotPasswordForm({super.key});
+
+  Future<void> _submit() async {
+    if (controller.isForgotPasswordLoading.value) return;
+    final ok = await FormErrorHost.submit(
+      controller.forgotPasswordFormKey,
+    );
+    if (ok) await controller.requestPasswordReset();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -645,6 +696,7 @@ class AuthForgotPasswordForm extends GetView<AuthController> {
                     }
                   },
                   textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
                 ),
                 Obx(() {
                   if (controller.forgotPasswordError.isEmpty) {
@@ -665,12 +717,7 @@ class AuthForgotPasswordForm extends GetView<AuthController> {
                     label: AppStrings.sendResetLink,
                     icon: LucideIcons.send,
                     isLoading: controller.isForgotPasswordLoading.value,
-                    onPressed: () async {
-                      final ok = await FormErrorHost.submit(
-                        controller.forgotPasswordFormKey,
-                      );
-                      if (ok) controller.requestPasswordReset();
-                    },
+                    onPressed: _submit,
                   ),
                 ),
               ],

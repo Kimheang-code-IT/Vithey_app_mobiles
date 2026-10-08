@@ -1,7 +1,63 @@
 # Contributing to Vithey / AUB Connect
 
-Thanks for contributing. This document describes the branching model, commit
-style, and pull-request process used by the repository.
+Thanks for contributing. This document describes the project's development
+resources, branching model, commit style, and pull-request process.
+
+## Project Resources
+
+| Resource | Purpose |
+| --- | --- |
+| Database Diagram | Database schema, tables, relationships, and data model |
+| System Architecture | Complete Vithey / AUB Connect system architecture and service relationships |
+| GitHub Repository | Source code, issues, pull requests, CI/CD, and project development |
+
+### Database Diagram
+
+dbdiagram.io:
+https://dbdiagram.io/d/6abcd3790f25a52d014d678a
+
+Use this resource when:
+
+- reviewing the database schema
+- creating or modifying tables
+- checking relationships
+- planning migrations
+- reviewing database-related pull requests
+
+### System Architecture
+
+Eraser:
+https://app.eraser.io/workspace/2Dx4uesY1V7HwZjqULJg?origin=share
+
+Use this resource to understand:
+
+- Flutter mobile application
+- API Gateway
+- Spring Boot services
+- external-services
+- AI Core
+- Fake Payment Service
+- PostgreSQL
+- Redis
+- RabbitMQ
+- WebSocket/STOMP
+- MinIO
+- external integrations
+- monitoring
+- CI/CD and deployment
+
+### Source Code
+
+GitHub:
+https://github.com/Kimheang-code-IT/Vithey_app_mobiles.git
+
+Repository: `Kimheang-code-IT/Vithey_app_mobiles`
+
+> **Documentation consistency:** When implementation changes affect the
+> database, system architecture, API structure, deployment, or service
+> relationships, contributors must update the corresponding technical
+> documentation and diagrams so that the documentation remains consistent with
+> the implementation.
 
 ## Branching model
 
@@ -47,6 +103,19 @@ Normal developers and AI agents must not commit directly to `main` or `dev`.
 13. Review.
 14. Merge into `main`.
 
+## Contribution rules
+
+- Create work from an appropriate `feature/`, `fix/`, `docs/`, `chore/`,
+  `test/`, or `refactor/` branch.
+- Do not commit directly to the protected `dev` or `main` branches.
+- Submit changes to `dev` through a pull request.
+- Make sure required CI checks pass before merging.
+- Use `dev` for integration.
+- Promote `dev` to `main` through a pull request after validation.
+- Update the relevant files under `docs/` when behavior or architecture changes.
+- Never commit passwords, API keys, OAuth secrets, tokens, private keys, or
+  other credentials.
+
 ## Commit messages — Conventional Commits
 
 Format: `<type>(<scope>): <short summary>`
@@ -71,6 +140,24 @@ chore(ci): add PR validation
 - The required check is `CI Gate` (feature → dev) and `Main Gate` (dev → main).
 - Do not merge with failing or unresolved checks.
 - Never commit secrets (see `SECURITY.md`).
+
+## Database changes
+
+1. Check the dbdiagram.io schema before making changes.
+2. Update the application/database migration correctly.
+3. Update the database diagram when the schema changes.
+4. Update relevant documentation.
+5. Test migrations against a safe development database.
+6. Include database-impact information in the pull request.
+
+## Architecture changes
+
+1. Check the Eraser architecture before making major structural changes.
+2. Update the implementation.
+3. Update the Eraser diagram if services, integrations, data flow,
+   infrastructure, or deployment relationships change.
+4. Update the relevant docs.
+5. Explain the architecture impact in the pull request.
 
 ## Code references
 

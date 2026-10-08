@@ -63,7 +63,10 @@ class UserMessageBubble extends StatelessWidget {
                   ),
                   child: Text(
                     content,
-                    style: context.text.bodyLarge?.copyWith(height: 1.45),
+                    style: context.text.bodyLarge?.copyWith(
+                      fontSize: 16,
+                      height: 1.6,
+                    ),
                   ),
                 ),
               ),

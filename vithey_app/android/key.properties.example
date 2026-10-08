@@ -1,0 +1,19 @@
+# Release signing configuration for the Vithey Android app.
+#
+# HOW TO USE
+#   1. Copy this file to `vithey_app/android/key.properties`.
+#   2. Generate an owner-controlled upload keystore OUTSIDE the repository, e.g.:
+#        keytool -genkeypair -v -keystore D:\keys\vithey-upload.jks \
+#          -keyalg RSA -keysize 2048 -validity 10000 -alias vithey-upload
+#   3. Fill in the values below. `storeFile` is resolved relative to
+#      `vithey_app/android/app/`; absolute paths also work.
+#   4. NEVER commit key.properties, the keystore, or these passwords.
+#
+# If this file is absent, `flutter build apk --release` falls back to debug
+# signing and prints a warning; that artifact is for local smoke tests only and
+# cannot be uploaded to Google Play.
+
+storePassword=REPLACE_ME
+keyPassword=REPLACE_ME
+keyAlias=vithey-upload
+storeFile=/absolute/path/outside/repo/vithey-upload.jks

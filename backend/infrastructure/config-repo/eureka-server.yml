@@ -12,3 +12,8 @@ eureka:
   server:
     enable-self-preservation: ${EUREKA_SELF_PRESERVATION:false}
     wait-time-in-ms-when-sync-empty: 0
+    # Publish newly registered instances quickly so the gateway can route to
+    # services (auth, etc.) within seconds of stack startup instead of 503-ing
+    # until the default 30s response cache refreshes.
+    response-cache-update-interval-ms: ${EUREKA_RESPONSE_CACHE_UPDATE_MS:5000}
+    eviction-interval-timer-in-ms: ${EUREKA_EVICTION_INTERVAL_MS:5000}

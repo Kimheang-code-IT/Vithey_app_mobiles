@@ -41,7 +41,7 @@ services:
     command:
       - postgres
       - -c
-      - max_connections=${PG_MAX_CONNECTIONS:-40}
+      - max_connections=${PG_MAX_CONNECTIONS:-100}
       - -c
       - shared_buffers=${PG_SHARED_BUFFERS:-96MB}
       - -c
@@ -191,9 +191,7 @@ services:
     image: vithey-ai-core:local
     container_name: vithey-ai-core
     environment:
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://openrouter.ai/api/v1}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-z-ai/glm-5.3-flash}
+      # LLM settings come from ai-core/.env via env_file (do not re-declare here).
       AI_CORE_WORKERS: ${AI_CORE_WORKERS:-1}
       MAX_POSTS_PER_BUILD: "20"
       MAX_CONTENT_CHARS: "2000"

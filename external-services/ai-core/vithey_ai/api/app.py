@@ -10,10 +10,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from ..chat_llm import LLMChat
 from ..chat_service import ChatService
 from ..config import Config
 from ..cv_app_service import CvAppService
 from ..db import build_database
+from ..deepseek_client import DeepSeekClient
 from ..logging_conf import get_logger
 from .deps import build_ai
 from .flutter_envelope import fail
@@ -52,7 +54,17 @@ def create_app(config: Config | None = None, ai=None) -> FastAPI:
 
     db = build_database(config)
     app.state.db = db
-    app.state.chat_service = ChatService(db)
+
+    # Chatbot: use the LLM when explicitly enabled and a key is present;
+    # otherwise ChatService degrades to the deterministic demo stub.
+    chat_llm_reply = None
+    if config.AI_CHAT_MODE == "llm" and config.DEEPSEEK_API_KEY:
+        try:
+            chat_llm_reply = LLMChat(DeepSeekClient(config)).reply
+        except Exception as exc:  # noqa: BLE001 - stub chat still works
+            logger.warning("Chat LLM disabled: %s", exc)
+
+    app.state.chat_service = ChatService(db, llm_reply=chat_llm_reply)
     app.state.cv_app_service = CvAppService(app.state.ai, config, db)
 
     # Middleware (order matters: outermost first).
